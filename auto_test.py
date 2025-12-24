@@ -1,0 +1,2 @@
+# Automatic changelog generation test
+
