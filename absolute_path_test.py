@@ -1,2 +1,0 @@
-# Test absolute path resolution
-

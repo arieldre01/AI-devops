@@ -11,6 +11,12 @@ from pathlib import Path
 import requests
 from typing import Optional
 
+# Fix Windows console encoding for emojis
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 # Configuration
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL = "mistral"  # Change this to use a different model
@@ -60,30 +66,70 @@ def get_git_diff() -> Optional[str]:
 
 def get_merge_diff() -> Optional[str]:
     """
-    Get the diff between HEAD and HEAD~1 (for merge commits).
+    Get the diff between HEAD and ORIG_HEAD (for merge commits).
+    ORIG_HEAD is set by git to the previous HEAD before merge.
     Returns the diff string or None if no changes detected.
     """
     try:
-        # Check if this is a merge commit
+        # Check if ORIG_HEAD exists (set by git before merge)
+        orig_head_check = subprocess.run(
+            ["git", "rev-parse", "--verify", "ORIG_HEAD"],
+            capture_output=True,
+            check=False
+        )
+        
+        # Check if this is a merge commit (has two parents)
         merge_check = subprocess.run(
             ["git", "rev-parse", "--verify", "HEAD^2"],
             capture_output=True,
             check=False
         )
         
-        if merge_check.returncode != 0:
-            # Not a merge commit
-            return None
+        if merge_check.returncode == 0:
+            # This is a merge commit with two parents
+            # Get diff between the merged branch and current HEAD
+            diff = subprocess.run(
+                ["git", "diff", "HEAD^1", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False
+            ).stdout
+        elif orig_head_check.returncode == 0:
+            # ORIG_HEAD exists, use it (fast-forward merge)
+            orig_head = orig_head_check.stdout.strip()
+            current_head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True
+            ).stdout.strip()
+            
+            # Only proceed if they're different
+            if orig_head != current_head:
+                diff = subprocess.run(
+                    ["git", "diff", orig_head, current_head],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                ).stdout
+            else:
+                # Fallback: compare HEAD~1 to HEAD (last commit)
+                diff = subprocess.run(
+                    ["git", "diff", "HEAD~1", "HEAD"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                ).stdout
+        else:
+            # No ORIG_HEAD, try comparing HEAD~1 to HEAD
+            diff = subprocess.run(
+                ["git", "diff", "HEAD~1", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False
+            ).stdout
         
-        # Get diff between HEAD and HEAD~1
-        diff = subprocess.run(
-            ["git", "diff", "HEAD~1", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=False
-        ).stdout
-        
-        if not diff.strip():
+        if not diff or not diff.strip():
             return None
         
         return diff

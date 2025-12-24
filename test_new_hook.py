@@ -1,2 +1,0 @@
-# Test new hook implementation
-

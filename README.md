@@ -1,35 +1,38 @@
-# Ollama Setup
+# Automatic Changelog Generation with Ollama
 
-## Installation
+This project automatically generates changelog entries when you merge branches using a local LLM (Ollama).
 
-1. Install Ollama from https://ollama.com/download
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Quick Start
 
-## Usage
+1. **Install Ollama**: https://ollama.com/download
+2. **Pull Mistral model**: `ollama pull mistral`
+3. **Install dependencies**: `pip install -r requirements.txt`
+4. **Merge a branch** - changelog is generated automatically!
 
-1. Start Ollama service (usually runs automatically):
-   ```bash
-   ollama serve
-   ```
+## How It Works
 
-2. Pull a model (first time):
-   ```bash
-   ollama pull mistral
-   ```
-   Or for Llama 3:8B:
-   ```bash
-   ollama pull llama3:8b
-   ```
+When you merge a branch into `main`, the git hook automatically:
+- Detects the merge
+- Analyzes the changes using Ollama/Mistral
+- Generates a changelog entry
+- Updates `CHANGELOG.md`
 
-3. Run the setup script:
-   ```bash
-   python ollama_setup.py
-   ```
+## Full Setup Guide
 
-## API Endpoint
+See [SETUP.md](SETUP.md) for complete setup instructions for new computers.
 
-Ollama runs on: `http://localhost:11434`
+## Files
+
+- `generate_changelog.py` - Main changelog generator
+- `ollama_setup.py` - Test Ollama connection
+- `simple_chat.py` - Simple chat interface
+- `.git/hooks/post-merge.py` - Git hook wrapper
+- `CHANGELOG.md` - Generated changelog (auto-updated)
+
+## Manual Usage
+
+Run manually to generate changelog from uncommitted changes:
+```bash
+python generate_changelog.py
+```
 
