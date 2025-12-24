@@ -1,0 +1,9 @@
+# Test feature file
+def hello_world():
+    """A simple hello world function."""
+    print("Hello, World!")
+
+def add_numbers(a, b):
+    """Add two numbers together."""
+    return a + b
+

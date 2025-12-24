@@ -58,6 +58,44 @@ def get_git_diff() -> Optional[str]:
         return None
 
 
+def get_merge_diff() -> Optional[str]:
+    """
+    Get the diff between HEAD and HEAD~1 (for merge commits).
+    Returns the diff string or None if no changes detected.
+    """
+    try:
+        # Check if this is a merge commit
+        merge_check = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^2"],
+            capture_output=True,
+            check=False
+        )
+        
+        if merge_check.returncode != 0:
+            # Not a merge commit
+            return None
+        
+        # Get diff between HEAD and HEAD~1
+        diff = subprocess.run(
+            ["git", "diff", "HEAD~1", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False
+        ).stdout
+        
+        if not diff.strip():
+            return None
+        
+        return diff
+    
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running git command: {e}")
+        return None
+    except FileNotFoundError:
+        print("❌ Git is not installed or not in PATH")
+        return None
+
+
 def generate_changelog_entry(diff: str) -> Optional[str]:
     """
     Use Ollama API to generate a changelog entry from the git diff.
@@ -146,12 +184,21 @@ def write_changelog(content: str, new_entry: str):
     print(f"✅ Updated {CHANGELOG_FILE}")
 
 
-def main():
-    """Main function to orchestrate the changelog generation."""
-    print("🔍 Checking for uncommitted changes...")
+def main(auto_write=False):
+    """Main function to orchestrate the changelog generation.
     
-    # Get git diff
-    diff = get_git_diff()
+    Args:
+        auto_write: If True, skip confirmation and write automatically.
+    """
+    # Check if we're in a post-merge context
+    is_post_merge = os.environ.get('GIT_HOOK') == 'post-merge'
+    
+    if is_post_merge:
+        print("🔍 Detected post-merge hook, checking merge changes...")
+        diff = get_merge_diff()
+    else:
+        print("🔍 Checking for uncommitted changes...")
+        diff = get_git_diff()
     
     if not diff:
         print("ℹ️  No changes detected")
@@ -176,12 +223,14 @@ def main():
     print("-" * 50)
     print()
     
-    # Ask for confirmation
-    response = input("Write this entry to CHANGELOG.md? [Y/n]: ").strip().lower()
-    
-    if response and response not in ['y', 'yes']:
-        print("❌ Cancelled")
-        sys.exit(0)
+    # Skip confirmation if auto_write is True or in post-merge hook
+    if not auto_write and not is_post_merge:
+        response = input("Write this entry to CHANGELOG.md? [Y/n]: ").strip().lower()
+        if response and response not in ['y', 'yes']:
+            print("❌ Cancelled")
+            sys.exit(0)
+    else:
+        print("🤖 Auto-writing to CHANGELOG.md...")
     
     # Read existing changelog
     existing_content = read_changelog()
@@ -193,5 +242,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Check for --auto flag or post-merge hook
+    auto_write = '--auto' in sys.argv or os.environ.get('GIT_HOOK') == 'post-merge'
+    main(auto_write=auto_write)
 
