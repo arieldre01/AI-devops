@@ -14,7 +14,7 @@ def test_ollama_connection():
         return False
 
 # Pull a model (if needed)
-def pull_model(model_name="llama2"):
+def pull_model(model_name="mistral"):
     try:
         print(f"📥 Pulling model: {model_name}...")
         ollama.pull(model_name)
@@ -23,7 +23,7 @@ def pull_model(model_name="llama2"):
         print(f"❌ Error pulling model: {e}")
 
 # Basic chat function
-def chat(prompt, model="llama2"):
+def chat(prompt, model="mistral"):
     try:
         response = ollama.chat(model=model, messages=[
             {

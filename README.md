@@ -17,7 +17,11 @@
 
 2. Pull a model (first time):
    ```bash
-   ollama pull llama2
+   ollama pull mistral
+   ```
+   Or for Llama 3:8B:
+   ```bash
+   ollama pull llama3:8b
    ```
 
 3. Run the setup script:

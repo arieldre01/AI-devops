@@ -11,7 +11,7 @@ def simple_chat():
         
         if not models_list:
             print("⚠️  No models found. Pull a model first:")
-            print("   ollama pull llama2")
+            print("   ollama pull mistral")
             return
         
         # Extract model names safely
@@ -24,11 +24,17 @@ def simple_chat():
         
         print(f"✅ Connected! Available models: {model_names}\n")
         
-        # Use the first available model or default to llama2
+        # Prefer mistral or llama3:8b, fallback to first available, or default to mistral
+        model = 'mistral'  # Default lightweight model
         if model_names:
-            model = model_names[0]
-        else:
-            model = 'llama2'
+            # Check if mistral is available
+            if any('mistral' in name.lower() for name in model_names):
+                model = next(name for name in model_names if 'mistral' in name.lower())
+            # Check if llama3:8b is available
+            elif any('llama3' in name.lower() or 'llama3:8b' in name.lower() for name in model_names):
+                model = next((name for name in model_names if 'llama3' in name.lower() or 'llama3:8b' in name.lower()), model_names[0])
+            else:
+                model = model_names[0]
             
     except Exception as e:
         print(f"❌ Error connecting to Ollama: {e}")
