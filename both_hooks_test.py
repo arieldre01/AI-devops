@@ -1,0 +1,2 @@
+# Test both hook files
+
