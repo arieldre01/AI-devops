@@ -469,14 +469,14 @@ def get_git_diff() -> Optional[str]:
 def get_ci_diff() -> Optional[str]:
     """
     Get the diff for CI environment (GitHub Actions).
-    Uses git log to find the merge commit and get its changes.
+    Only gets the changes from the LAST commit (not full branch history).
     Returns the diff string or None if no changes detected.
     """
     try:
-        # In GitHub Actions after PR merge, get diff of the merge commit
-        # First, try to get the diff of the last commit (the merge)
+        # Get only the changes from the last commit using git show
+        # This shows just what changed in HEAD, not accumulated history
         result = subprocess.run(
-            ["git", "diff", "HEAD~1", "HEAD"],
+            ["git", "show", "--format=", "--no-color", "HEAD"],
             capture_output=True,
             text=True,
             encoding='utf-8',
@@ -484,26 +484,6 @@ def get_ci_diff() -> Optional[str]:
             check=False
         )
         diff = result.stdout if result.stdout else ""
-        
-        # If empty, try getting diff between main~1 and main
-        if not diff.strip():
-            result = subprocess.run(
-                ["git", "log", "-1", "--format=%H", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0:
-                # Get the full diff of the merge commit
-                result = subprocess.run(
-                    ["git", "show", "--format=", "HEAD"],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    check=False
-                )
-                diff = result.stdout if result.stdout else ""
         
         if not diff or not diff.strip():
             return None
