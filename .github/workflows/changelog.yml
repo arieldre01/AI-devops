@@ -37,14 +37,30 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
       
-      - name: Start Ollama service
+      - name: Start Ollama service and wait for ready
         run: |
           ollama serve &
-          sleep 5
+          # Wait for Ollama API to be ready (up to 60 seconds)
+          for i in {1..30}; do
+            if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+              echo "Ollama is ready!"
+              break
+            fi
+            echo "Waiting for Ollama to start... ($i/30)"
+            sleep 2
+          done
       
       - name: Pull Mistral model (if not cached)
         run: |
-          ollama pull mistral
+          # Retry logic for model pull
+          for i in {1..3}; do
+            if ollama pull mistral; then
+              echo "Model pulled successfully!"
+              break
+            fi
+            echo "Retrying model pull... ($i/3)"
+            sleep 5
+          done
       
       - name: Generate changelog entry
         run: |
