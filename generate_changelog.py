@@ -637,7 +637,7 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
             headers={'Content-Type': 'application/json'}
         )
         
-        with urlopen(request, timeout=600) as response:  # 10 min timeout for CPU inference
+        with urlopen(request, timeout=300) as response:  # 5 min timeout
             result = json.loads(response.read().decode('utf-8'))
             generated_text = result.get("response", "").strip()
             
