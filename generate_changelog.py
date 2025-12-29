@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
+import socket
 
 # Fix Windows console encoding
 if sys.platform == 'win32':
@@ -600,7 +601,7 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
     except HTTPError as e:
         print(f"[ERROR] HTTP error calling Ollama API: {e.code} {e.reason}")
         return None
-    except TimeoutError:
+    except socket.timeout:
         print("[ERROR] Request timed out. Ollama might be processing a large request.")
         return None
     except json.JSONDecodeError as e:

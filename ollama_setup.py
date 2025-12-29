@@ -1,4 +1,14 @@
-import ollama
+"""
+Helper script to test Ollama connection.
+Requires: pip install ollama
+"""
+try:
+    import ollama
+except ImportError:
+    print("[ERROR] 'ollama' package not installed.")
+    print("   Install with: pip install ollama")
+    print("   Or use generate_changelog.py which has no dependencies.")
+    exit(1)
 
 # Test Ollama connection
 def test_ollama_connection():

@@ -60,8 +60,11 @@ def is_odd(n):
     return n % 2 != 0
 
 def average(numbers):
-    """Calculate the average of a list of numbers."""
+    """Calculate the average of a list of numbers.
+    
+    Raises ValueError if the list is empty (average of empty set is undefined).
+    """
     if not numbers:
-        return 0
+        raise ValueError("Cannot calculate average of empty list")
     return sum(numbers) / len(numbers)
 

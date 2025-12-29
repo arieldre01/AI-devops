@@ -1,2 +1,5 @@
-# No external dependencies required!
+# No external dependencies required for the main script!
 # generate_changelog.py uses only Python standard library
+
+# Optional: For helper scripts (ollama_setup.py, simple_chat.py)
+# pip install ollama

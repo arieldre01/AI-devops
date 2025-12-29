@@ -1,5 +1,8 @@
 ## Unreleased
 
+[Feature] Added a 'truncate' function to utils.py for truncating text to a specified maximum length with an optional suffix.
+
+
 [Feature] Added 'average' function to calculate the average of a list of numbers.
 
 

@@ -1,4 +1,13 @@
-import ollama
+"""
+Simple chat interface for Ollama.
+Requires: pip install ollama
+"""
+try:
+    import ollama
+except ImportError:
+    print("[ERROR] 'ollama' package not installed.")
+    print("   Install with: pip install ollama")
+    exit(1)
 
 def simple_chat():
     print("Ollama Simple Chat")
