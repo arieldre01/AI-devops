@@ -306,8 +306,11 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
             print("   Install from: https://ollama.com/download")
             return False
         
-        # Prompt user for installation (skip in auto mode)
-        is_auto_mode = os.environ.get('GIT_HOOK') == 'post-merge' or '--auto' in sys.argv
+        # Prompt user for installation (skip in auto mode or CI)
+        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
+                        '--auto' in sys.argv or 
+                        '--ci' in sys.argv or 
+                        os.environ.get('GITHUB_ACTIONS') == 'true')
         
         if not is_auto_mode:
             response = input("   Would you like to install Ollama now? [Y/n]: ").strip().lower()
@@ -341,8 +344,11 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
         print(f"[WARN] Model '{MODEL}' is not installed")
         print(f"   The model is required for AI-powered changelog generation.")
         
-        # In auto mode, just download it
-        is_auto_mode = os.environ.get('GIT_HOOK') == 'post-merge' or '--auto' in sys.argv
+        # In auto mode or CI, just download it
+        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
+                        '--auto' in sys.argv or 
+                        '--ci' in sys.argv or 
+                        os.environ.get('GITHUB_ACTIONS') == 'true')
         
         if not is_auto_mode:
             response = input(f"   Download '{MODEL}' model now? (~4GB) [Y/n]: ").strip().lower()
