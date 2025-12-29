@@ -1,10 +1,20 @@
 # Automatic Changelog Generation with Ollama
 
-**Version 1.0-local** - Single-file solution for local development
+**Version 1.0-github** - GitHub Actions integration with cached Ollama
 
-Automatically generate changelog entries when you merge branches using a local LLM (Ollama).
+Automatically generate changelog entries when PRs are merged using a local LLM (Ollama).
 
 ## Quick Start
+
+### Option A: GitHub Actions (Recommended for Teams)
+
+1. Copy these files to your project:
+   - `generate_changelog.py`
+   - `.github/workflows/changelog.yml`
+
+2. Push to GitHub - done! Changelogs generate automatically on PR merge.
+
+### Option B: Local Development
 
 ```bash
 # 1. Copy script to your project
@@ -16,25 +26,50 @@ python generate_changelog.py --install
 # 3. Done! Merge branches and changelogs appear automatically
 ```
 
-That's it! Just **1 file** and **1 command**.
-
 ## Features
 
 - Uses only Python standard library
-- Simple deployment to any project
+- GitHub Actions with cached Ollama model
+- Local git hooks for development
 - Windows, Mac, Linux
 - Auto-truncates large diffs
 - Verifies Ollama and model availability
-- Run on-demand or via git hooks
 
 ## How It Works
 
-When you merge a branch into `main`, the git hook automatically:
-1. Detects the merge and gets the diff
-2. Checks if Ollama is running and model is available
-3. Sends the diff to Ollama/Mistral for analysis
-4. Generates a concise changelog entry
-5. Updates `CHANGELOG.md` under "## Unreleased"
+### GitHub Actions (PR Merge)
+1. Developer merges a PR to `main`
+2. GitHub Actions workflow triggers
+3. Restores cached Ollama model (~4GB, first run downloads it)
+4. Generates changelog entry from PR diff
+5. Commits and pushes updated `CHANGELOG.md`
+
+### Local (Git Hook)
+1. Developer runs `git merge feature-branch`
+2. Post-merge hook triggers
+3. Ollama generates changelog entry
+4. Updates `CHANGELOG.md` automatically
+
+## GitHub Actions Setup
+
+The workflow file `.github/workflows/changelog.yml` handles everything:
+
+```yaml
+# Triggers on PR merge to main
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+```
+
+**Cache Details:**
+- Cache key: `ollama-mistral-v1`
+- Size: ~4GB (Mistral model)
+- Lifetime: 7 days of inactivity
+- Shared across all branches and contributors
+
+First PR merge: ~5-10 minutes (downloads model)
+Subsequent merges: ~1-2 minutes (uses cache)
 
 ## Manual Usage
 
@@ -50,11 +85,11 @@ With auto-confirm:
 python generate_changelog.py --auto
 ```
 
-## Deployment to Other Projects
+In CI environment:
 
-See [DEPLOY.md](DEPLOY.md) for detailed deployment instructions.
-
-**TL;DR:** Just copy 2 files - no pip install needed!
+```bash
+python generate_changelog.py --ci
+```
 
 ## Configuration
 
@@ -84,19 +119,50 @@ SYSTEM_PROMPT = "..."       # Customize AI instructions
 - **Python 3.7+** - https://python.org/downloads
 - **Git** - https://git-scm.com/downloads
 
-### Auto-Installed
+### For GitHub Actions
+- Just the workflow file and script - Ollama installs automatically
+
+### For Local Development
 - **Ollama** - Downloaded and installed automatically
 - **Mistral model** - Downloaded automatically (~4GB)
 - **Git hook** - Created automatically by `--install`
 
-### Per Project
-- `generate_changelog.py` - Just this one file!
+## Commands
 
-No pip install needed. No manual hook setup. The script handles everything.
+```bash
+python generate_changelog.py --install    # Install hook + Ollama + model
+python generate_changelog.py --uninstall  # Remove the hook
+python generate_changelog.py --setup      # Just check/install Ollama
+python generate_changelog.py --auto       # Generate without prompts
+python generate_changelog.py --ci         # CI mode (GitHub Actions)
+python generate_changelog.py --help       # Show all options
+```
+
+## Files
+
+- `generate_changelog.py` - Main script
+- `.github/workflows/changelog.yml` - GitHub Actions workflow
+- `CHANGELOG.md` - Generated changelog (auto-created)
+- `.git/hooks/post-merge` - Created by --install (local only)
+
+## Version History
+
+**v1.0-github** (Current) - GitHub Actions integration:
+- GitHub Actions workflow with Ollama caching
+- `--ci` flag for CI environment detection
+- Automatic PR merge changelog generation
+- Shared cache across all contributors
+
+**v1.0-local** - Single-file local solution:
+- Single Python file deployment
+- Auto-installs Ollama and Mistral model
+- Zero external dependencies (Python stdlib only)
+- Cross-platform (Windows, Mac, Linux)
+- Git hook auto-configuration
 
 ## Troubleshooting
 
-**Ollama not running?**
+**Ollama not running (local)?**
 ```bash
 ollama serve
 ```
@@ -111,30 +177,10 @@ ollama pull mistral
 chmod +x .git/hooks/post-merge
 ```
 
-## Commands
-
-```bash
-python generate_changelog.py --install    # Install hook + Ollama + model
-python generate_changelog.py --uninstall  # Remove the hook
-python generate_changelog.py --setup      # Just check/install Ollama
-python generate_changelog.py --auto       # Generate without prompts
-python generate_changelog.py --help       # Show all options
-```
-
-## Files
-
-- `generate_changelog.py` - The only file you need!
-- `CHANGELOG.md` - Generated changelog (auto-created)
-- `.git/hooks/post-merge` - Created by --install (don't copy manually)
-
-## Version History
-
-**v1.0-local** (Current) - Single-file local solution:
-- Single Python file deployment
-- Auto-installs Ollama and Mistral model
-- Zero external dependencies (Python stdlib only)
-- Cross-platform (Windows, Mac, Linux)
-- Git hook auto-configuration
+**GitHub Actions failing?**
+- Check workflow logs in Actions tab
+- Ensure repository has write permissions for workflows
+- First run takes longer (model download)
 
 ## License
 

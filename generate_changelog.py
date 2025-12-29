@@ -460,6 +460,55 @@ def get_git_diff() -> Optional[str]:
         return None
 
 
+def get_ci_diff() -> Optional[str]:
+    """
+    Get the diff for CI environment (GitHub Actions).
+    Uses git log to find the merge commit and get its changes.
+    Returns the diff string or None if no changes detected.
+    """
+    try:
+        # In GitHub Actions after PR merge, get diff of the merge commit
+        # First, try to get the diff of the last commit (the merge)
+        result = subprocess.run(
+            ["git", "diff", "HEAD~1", "HEAD"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        diff = result.stdout if result.stdout else ""
+        
+        # If empty, try getting diff between main~1 and main
+        if not diff.strip():
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%H", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0:
+                # Get the full diff of the merge commit
+                result = subprocess.run(
+                    ["git", "show", "--format=", "HEAD"],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                    check=False
+                )
+                diff = result.stdout if result.stdout else ""
+        
+        if not diff or not diff.strip():
+            return None
+        
+        return diff
+    
+    except Exception as e:
+        print(f"[ERROR] Error getting CI diff: {e}")
+        return None
+
+
 def get_merge_diff() -> Optional[str]:
     """
     Get the diff between HEAD and ORIG_HEAD (for merge commits).
@@ -656,11 +705,12 @@ def write_changelog(content: str, new_entry: str):
     print(f"[OK] Updated {CHANGELOG_FILE}")
 
 
-def main(auto_write=False):
+def main(auto_write=False, ci_mode=False):
     """Main function to orchestrate the changelog generation.
     
     Args:
         auto_write: If True, skip confirmation and write automatically.
+        ci_mode: If True, running in CI environment (GitHub Actions).
     """
     # Pre-flight checks with auto-install
     print("Running pre-flight checks...")
@@ -672,10 +722,16 @@ def main(auto_write=False):
     
     print("\n[OK] All pre-flight checks passed!")
     
+    # Check if we're in a CI environment
+    is_ci = ci_mode or os.environ.get('GITHUB_ACTIONS') == 'true'
+    
     # Check if we're in a post-merge context
     is_post_merge = os.environ.get('GIT_HOOK') == 'post-merge'
     
-    if is_post_merge:
+    if is_ci:
+        print("Detected CI environment (GitHub Actions), checking merge changes...")
+        diff = get_ci_diff()
+    elif is_post_merge:
         print("Detected post-merge hook, checking merge changes...")
         diff = get_merge_diff()
     else:
@@ -705,8 +761,8 @@ def main(auto_write=False):
     print("-" * 50)
     print()
     
-    # Skip confirmation if auto_write is True or in post-merge hook
-    if not auto_write and not is_post_merge:
+    # Skip confirmation if auto_write is True, in CI mode, or in post-merge hook
+    if not auto_write and not is_ci and not is_post_merge:
         response = input("Write this entry to CHANGELOG.md? [Y/n]: ").strip().lower()
         if response and response not in ['y', 'yes']:
             print("Cancelled")
@@ -895,6 +951,7 @@ Options:
     --uninstall   Remove the git hook
     --setup       Check/install Ollama and download the model
     --auto        Generate changelog without confirmation prompt
+    --ci          CI mode (non-interactive, for GitHub Actions)
     --help        Show this help message
 
 Examples:
@@ -938,6 +995,9 @@ if __name__ == "__main__":
             print("\n[ERROR] Setup failed.")
             sys.exit(1)
     
+    # Check for --ci flag (GitHub Actions mode)
+    ci_mode = '--ci' in sys.argv or os.environ.get('GITHUB_ACTIONS') == 'true'
+    
     # Check for --auto flag or post-merge hook
-    auto_write = '--auto' in sys.argv or os.environ.get('GIT_HOOK') == 'post-merge'
-    main(auto_write=auto_write)
+    auto_write = '--auto' in sys.argv or os.environ.get('GIT_HOOK') == 'post-merge' or ci_mode
+    main(auto_write=auto_write, ci_mode=ci_mode)
