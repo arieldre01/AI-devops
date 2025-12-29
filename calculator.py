@@ -59,3 +59,9 @@ def is_odd(n):
     """Check if a number is odd."""
     return n % 2 != 0
 
+def average(numbers):
+    """Calculate the average of a list of numbers."""
+    if not numbers:
+        return 0
+    return sum(numbers) / len(numbers)
+
