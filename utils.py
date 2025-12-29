@@ -27,3 +27,8 @@ def count_words(text):
         return 0
     return len(text.split())
 
+def is_palindrome(text):
+    """Check if a string is a palindrome (ignoring case and spaces)."""
+    cleaned = text.lower().replace(" ", "")
+    return cleaned == cleaned[::-1]
+
