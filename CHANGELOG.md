@@ -1,5 +1,8 @@
 ## Unreleased
 
+[Refactor] - Changes to get_ci_diff function: Simplified code by directly returning changes from the last commit using `git show HEAD` instead of first getting merge commit details and then its differences with parent commits, making it unnecessary. Also removed redundant condition handling for checking if diff is empty or not as git log now provides full change history in one command output which can be filtered later on based upon requirements like `--grep`.
+
+
 [Feature]: Enhanced `generate_changelog` script for better CI processing by replacing mistral model with 'phi3:mini' that is three times faster on CPUs, implemented wait logic and retry mechanisms when pulling models. Increased timeout duration in the script from 5 min to 10 min across Windows systems.
 
 [Refactor]: Transitioned model from mistral to phi3:mini with updated OLLAMA API URLs; added improved waiting, retries and increased `generate_changelog` script execution time limit for CPU inference tasks by 'phi3:mini' which is three times faster on Windows systems.
