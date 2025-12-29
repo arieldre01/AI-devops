@@ -51,3 +51,11 @@ def absolute(n):
     """Return the absolute value of a number."""
     return n if n >= 0 else -n
 
+def is_even(n):
+    """Check if a number is even."""
+    return n % 2 == 0
+
+def is_odd(n):
+    """Check if a number is odd."""
+    return n % 2 != 0
+
