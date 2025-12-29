@@ -27,7 +27,7 @@ if sys.platform == 'win32':
 # Configuration
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
-MODEL = "mistral"  # Change this to use a different model
+MODEL = "phi3:mini"  # Change this to use a different model
 CHANGELOG_FILE = "CHANGELOG.md"
 MAX_DIFF_CHARS = 8000  # Limit diff size to avoid context overflow
 
