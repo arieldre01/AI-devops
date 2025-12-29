@@ -31,7 +31,7 @@ jobs:
         id: cache-ollama
         with:
           path: ~/.ollama
-          key: ollama-mistral-v1
+          key: ollama-phi3-mini-v1
       
       - name: Install Ollama
         run: |
@@ -54,7 +54,7 @@ jobs:
         run: |
           # Retry logic for model pull
           for i in {1..3}; do
-            if ollama pull mistral; then
+            if ollama pull phi3:mini; then
               echo "Model pulled successfully!"
               break
             fi
