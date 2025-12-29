@@ -29,7 +29,7 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 MODEL = "mistral"  # Change this to use a different model
 CHANGELOG_FILE = "CHANGELOG.md"
-MAX_DIFF_CHARS = 8000  # Limit diff size to avoid context overflow
+MAX_DIFF_CHARS = 4000  # Limit diff size for faster CI processing
 
 # Ollama download URLs
 OLLAMA_WINDOWS_URL = "https://ollama.com/download/OllamaSetup.exe"
@@ -637,7 +637,7 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
             headers={'Content-Type': 'application/json'}
         )
         
-        with urlopen(request, timeout=300) as response:
+        with urlopen(request, timeout=600) as response:  # 10 min timeout for CPU inference
             result = json.loads(response.read().decode('utf-8'))
             generated_text = result.get("response", "").strip()
             
