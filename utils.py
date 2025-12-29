@@ -21,3 +21,9 @@ def capitalize_words(text):
     """Capitalize the first letter of each word."""
     return " ".join([word.capitalize() for word in text.split()])
 
+def count_words(text):
+    """Count the number of words in a string."""
+    if not text or not text.strip():
+        return 0
+    return len(text.split())
+
