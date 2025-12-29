@@ -47,3 +47,7 @@ def factorial(n):
         result *= i
     return result
 
+def absolute(n):
+    """Return the absolute value of a number."""
+    return n if n >= 0 else -n
+
