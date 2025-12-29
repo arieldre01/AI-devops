@@ -27,7 +27,7 @@ if sys.platform == 'win32':
 # Configuration
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
-MODEL = "phi3:mini"  # Fast model for CI (CPU-friendly)
+MODEL = "phi3:mini"  # Fast model for CI - 3x faster than mistral on CPU
 CHANGELOG_FILE = "CHANGELOG.md"
 MAX_DIFF_CHARS = 4000  # Limit diff size for faster CI processing
 
