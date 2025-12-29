@@ -469,14 +469,15 @@ def get_git_diff() -> Optional[str]:
 def get_ci_diff() -> Optional[str]:
     """
     Get the diff for CI environment (GitHub Actions).
-    Only gets the changes from the LAST commit (not full branch history).
+    For merge commits, gets the diff between first parent and HEAD.
     Returns the diff string or None if no changes detected.
     """
     try:
-        # Get only the changes from the last commit using git show
-        # This shows just what changed in HEAD, not accumulated history
+        # For merge commits (like GitHub PR merges), use diff from first parent
+        # HEAD^1 is the main branch before merge, HEAD is after merge
+        print("[DEBUG] Getting CI diff using: git diff HEAD^1 HEAD")
         result = subprocess.run(
-            ["git", "show", "--format=", "--no-color", "HEAD"],
+            ["git", "diff", "HEAD^1", "HEAD", "--no-color"],
             capture_output=True,
             text=True,
             encoding='utf-8',
@@ -484,8 +485,24 @@ def get_ci_diff() -> Optional[str]:
             check=False
         )
         diff = result.stdout if result.stdout else ""
+        print(f"[DEBUG] Diff length from HEAD^1: {len(diff)} chars")
+        
+        # If that fails (not a merge commit), try git show
+        if not diff.strip():
+            print("[DEBUG] No diff from HEAD^1, trying git show HEAD")
+            result = subprocess.run(
+                ["git", "show", "--format=", "--no-color", "HEAD"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                check=False
+            )
+            diff = result.stdout if result.stdout else ""
+            print(f"[DEBUG] Diff length from git show: {len(diff)} chars")
         
         if not diff or not diff.strip():
+            print("[WARN] No diff found for this commit")
             return None
         
         return diff
