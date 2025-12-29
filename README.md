@@ -1,5 +1,7 @@
 # Automatic Changelog Generation with Ollama
 
+**Version 1.0-local** - Single-file solution for local development
+
 Automatically generate changelog entries when you merge branches using a local LLM (Ollama).
 
 ## Quick Start
@@ -125,20 +127,15 @@ python generate_changelog.py --help       # Show all options
 - `CHANGELOG.md` - Generated changelog (auto-created)
 - `.git/hooks/post-merge` - Created by --install (don't copy manually)
 
-## What Changed?
+## Version History
 
-**Version 2.0** - Simplified to 2 files:
-- Replaced `requests` with `urllib` (stdlib only)
-- Added pre-flight checks (Ollama health, model verification)
-- Added smart diff truncation (prevents context overflow)
-- Consolidated 4 hook files into 1 universal hook
-- Zero external dependencies
-
-**Version 1.0** - Original:
-- Required `requests` package
-- 4 separate hook files (Windows/Unix/wrapper)
-- Complex path resolution logic
+**v1.0-local** (Current) - Single-file local solution:
+- Single Python file deployment
+- Auto-installs Ollama and Mistral model
+- Zero external dependencies (Python stdlib only)
+- Cross-platform (Windows, Mac, Linux)
+- Git hook auto-configuration
 
 ## License
 
-Free to use. Copy these 2 files to any project!
+MIT - Free to use. Copy to any project!
