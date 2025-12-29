@@ -1,24 +1,22 @@
 # Quick Deployment Guide
 
-Deploy automatic changelog generation to **any project** with just 2 files!
+Deploy automatic changelog generation to **any project** with just **1 file** and **1 command**!
 
 ## Prerequisites
 
-You only need these installed manually:
+You only need:
 
 1. **Python 3.7+** - https://python.org/downloads
 2. **Git** - https://git-scm.com/downloads
 
-**Ollama and Mistral are auto-installed!** The script handles:
-- Downloading and installing Ollama (Windows/Mac/Linux)
-- Downloading the Mistral model (~4GB)
-- Starting the Ollama service
+Everything else is auto-installed:
+- Ollama (Windows/Mac/Linux)
+- Mistral model (~4GB)
+- Git hook
 
-## Deployment Steps
+## Deployment (2 Steps)
 
-## Deployment Steps
-
-### Step 1: Copy Main Script
+### Step 1: Copy Script
 
 Copy `generate_changelog.py` to your project root:
 
@@ -26,32 +24,20 @@ Copy `generate_changelog.py` to your project root:
 cp generate_changelog.py /path/to/your/project/
 ```
 
-### Step 2: Copy Git Hook
-
-Copy the hook to your project's `.git/hooks/` directory:
+### Step 2: Install
 
 ```bash
-cp .git/hooks/post-merge /path/to/your/project/.git/hooks/
-```
-
-### Step 3: Make Hook Executable (Unix/Mac only)
-
-```bash
-chmod +x /path/to/your/project/.git/hooks/post-merge
-```
-
-On Windows, this step is automatic.
-
-### Step 4: Run Setup (Auto-Installs Everything)
-
-```bash
-python generate_changelog.py --setup
+cd /path/to/your/project
+python generate_changelog.py --install
 ```
 
 This will:
-- Check if Ollama is installed (installs if missing)
-- Start Ollama service (if not running)
-- Download Mistral model (if not present, ~4GB)
+- Create the git hook automatically
+- Install Ollama if missing
+- Download the Mistral model if needed
+- Start the Ollama service
+
+**That's it!**
 
 
 ## How to Use
@@ -83,12 +69,12 @@ It will:
 
 ## Files Needed
 
-### Essential (2 files)
-- `generate_changelog.py` - Main script (zero dependencies!)
-- `.git/hooks/post-merge` - Git hook
+### Essential (1 file!)
+- `generate_changelog.py` - The only file you need
 
-### Optional
-- `CHANGELOG.md` - Auto-created on first run
+### Auto-Created
+- `.git/hooks/post-merge` - Created by `--install`
+- `CHANGELOG.md` - Created on first merge
 
 ## Configuration
 
@@ -160,9 +146,11 @@ MODEL = "llama3:8b"
 
 ## Uninstall
 
-Remove the 2 files:
 ```bash
+# Remove the hook
+python generate_changelog.py --uninstall
+
+# Optionally remove the script
 rm generate_changelog.py
-rm .git/hooks/post-merge
 ```
 

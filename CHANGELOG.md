@@ -1,5 +1,8 @@
 ## Unreleased
 
+[Feature] Added 'average' function to calculate the average of a list of numbers.
+
+
 [New Function]: Added 'is_even' and 'is_odd' functions to check if a number is even or odd.
 
 

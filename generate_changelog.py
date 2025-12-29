@@ -722,7 +722,211 @@ def main(auto_write=False):
     print("Done!")
 
 
+# =============================================================================
+# Git Hook Installation
+# =============================================================================
+
+# The hook script that will be installed to .git/hooks/post-merge
+HOOK_SCRIPT = '''#!/bin/sh
+# Post-merge hook - automatically generates changelog entries
+# Installed by: python generate_changelog.py --install
+
+export GIT_HOOK="post-merge"
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+if [ ! -f "$REPO_ROOT/generate_changelog.py" ]; then
+    echo "[ERROR] generate_changelog.py not found at $REPO_ROOT"
+    exit 1
+fi
+
+cd "$REPO_ROOT"
+
+# Try py (Windows), then python3, then python
+if command -v py >/dev/null 2>&1; then
+    py "$REPO_ROOT/generate_changelog.py" --auto
+elif command -v python3 >/dev/null 2>&1; then
+    python3 "$REPO_ROOT/generate_changelog.py" --auto
+elif command -v python >/dev/null 2>&1; then
+    python "$REPO_ROOT/generate_changelog.py" --auto
+else
+    echo "[ERROR] Python not found"
+    exit 1
+fi
+'''
+
+
+def get_git_root() -> Optional[Path]:
+    """Get the root directory of the current git repository."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return Path(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def install_hook() -> bool:
+    """
+    Install the post-merge git hook.
+    Creates .git/hooks/post-merge that calls generate_changelog.py
+    """
+    print("\n" + "="*50)
+    print("Installing Changelog Hook")
+    print("="*50 + "\n")
+    
+    # Check if in git repo
+    git_root = get_git_root()
+    if not git_root:
+        print("[ERROR] Not in a git repository")
+        print("   Run 'git init' first or navigate to a git repository")
+        return False
+    
+    print(f"[OK] Git repository found: {git_root}")
+    
+    # Check if generate_changelog.py is in the repo root
+    script_path = git_root / "generate_changelog.py"
+    if not script_path.exists():
+        current_script = Path(__file__).resolve()
+        if current_script != script_path:
+            print(f"[WARN] generate_changelog.py not in repo root")
+            print(f"   Current location: {current_script}")
+            print(f"   Expected location: {script_path}")
+            print(f"   Copy the script to your project root first")
+            return False
+    
+    # Create hooks directory if it doesn't exist
+    hooks_dir = git_root / ".git" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Write the hook script
+    hook_path = hooks_dir / "post-merge"
+    
+    # Check if hook already exists
+    if hook_path.exists():
+        print(f"[WARN] Hook already exists at {hook_path}")
+        # Check if it's our hook
+        content = hook_path.read_text(encoding='utf-8', errors='replace')
+        if "generate_changelog.py" in content:
+            print("   This appears to be the changelog hook (already installed)")
+            print("   Use --uninstall first if you want to reinstall")
+            return True
+        else:
+            print("   This is a different hook - not overwriting")
+            print("   Backup or remove it first if you want to install")
+            return False
+    
+    # Write hook
+    hook_path.write_text(HOOK_SCRIPT, encoding='utf-8')
+    print(f"[OK] Hook installed: {hook_path}")
+    
+    # Make executable on Unix
+    if sys.platform != 'win32':
+        import stat
+        hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print("[OK] Made hook executable")
+    
+    # Run Ollama setup
+    print("\nSetting up Ollama...")
+    if not ensure_ollama_ready(auto_install=True):
+        print("[WARN] Ollama setup incomplete - you can run --setup later")
+    
+    print("\n" + "="*50)
+    print("Installation Complete!")
+    print("="*50)
+    print("\nThe changelog will now be generated automatically when you merge branches.")
+    print("\nTo test it:")
+    print("   1. Create a branch:  git checkout -b test-branch")
+    print("   2. Make changes and commit")
+    print("   3. Merge to main:    git checkout main && git merge test-branch")
+    print("   4. Check CHANGELOG.md - a new entry should appear!")
+    print("\nTo uninstall: python generate_changelog.py --uninstall")
+    
+    return True
+
+
+def uninstall_hook() -> bool:
+    """Remove the post-merge git hook."""
+    print("\n" + "="*50)
+    print("Uninstalling Changelog Hook")
+    print("="*50 + "\n")
+    
+    git_root = get_git_root()
+    if not git_root:
+        print("[ERROR] Not in a git repository")
+        return False
+    
+    hook_path = git_root / ".git" / "hooks" / "post-merge"
+    
+    if not hook_path.exists():
+        print("[INFO] No hook installed - nothing to remove")
+        return True
+    
+    # Verify it's our hook before removing
+    content = hook_path.read_text(encoding='utf-8', errors='replace')
+    if "generate_changelog.py" not in content:
+        print("[ERROR] The existing hook is not the changelog hook")
+        print("   Not removing to avoid breaking your setup")
+        return False
+    
+    # Remove the hook
+    hook_path.unlink()
+    print(f"[OK] Hook removed: {hook_path}")
+    print("\nAutomatic changelog generation is now disabled.")
+    print("You can still run manually: python generate_changelog.py")
+    
+    return True
+
+
+def print_help():
+    """Print usage help."""
+    print("""
+Automatic Changelog Generator
+
+Usage:
+    python generate_changelog.py [options]
+
+Options:
+    --install     Install the git hook for automatic changelog generation
+    --uninstall   Remove the git hook
+    --setup       Check/install Ollama and download the model
+    --auto        Generate changelog without confirmation prompt
+    --help        Show this help message
+
+Examples:
+    # First-time setup (recommended)
+    python generate_changelog.py --install
+    
+    # Manual changelog generation
+    python generate_changelog.py
+    
+    # Check Ollama setup
+    python generate_changelog.py --setup
+    
+    # Remove the hook
+    python generate_changelog.py --uninstall
+""")
+
+
 if __name__ == "__main__":
+    # Check for --help
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print_help()
+        sys.exit(0)
+    
+    # Check for --install flag
+    if '--install' in sys.argv:
+        success = install_hook()
+        sys.exit(0 if success else 1)
+    
+    # Check for --uninstall flag
+    if '--uninstall' in sys.argv:
+        success = uninstall_hook()
+        sys.exit(0 if success else 1)
+    
     # Check for --setup flag (just install/setup, don't generate changelog)
     if '--setup' in sys.argv:
         print("Running Ollama setup...")

@@ -2,22 +2,19 @@
 
 Automatically generate changelog entries when you merge branches using a local LLM (Ollama).
 
-> **Note:** Requires Ollama installed with a model (e.g., Mistral). See Prerequisites below.
-
-
 ## Quick Start
 
-1. **Copy 2 files to your project**:
-   - `generate_changelog.py` → project root
-   - `.git/hooks/post-merge` → `.git/hooks/` directory
-2. **Make hook executable** (Unix/Mac): `chmod +x .git/hooks/post-merge`
-3. **Run setup** (auto-installs Ollama + Mistral if needed):
-   ```bash
-   python generate_changelog.py --setup
-   ```
-4. **Merge a branch** - changelog is generated automatically!
+```bash
+# 1. Copy script to your project
+cp generate_changelog.py /path/to/your/project/
 
-> **Note:** The script auto-installs Ollama and downloads the Mistral model if not present!
+# 2. Install (auto-sets up hook + Ollama + model)
+python generate_changelog.py --install
+
+# 3. Done! Merge branches and changelogs appear automatically
+```
+
+That's it! Just **1 file** and **1 command**.
 
 ## Features
 
@@ -85,15 +82,15 @@ SYSTEM_PROMPT = "..."       # Customize AI instructions
 - **Python 3.7+** - https://python.org/downloads
 - **Git** - https://git-scm.com/downloads
 
-### Auto-Installed (if missing)
+### Auto-Installed
 - **Ollama** - Downloaded and installed automatically
 - **Mistral model** - Downloaded automatically (~4GB)
+- **Git hook** - Created automatically by `--install`
 
-### Per Project (just 2 files!)
-- `generate_changelog.py` - copy to project root
-- `.git/hooks/post-merge` - copy to `.git/hooks/`
+### Per Project
+- `generate_changelog.py` - Just this one file!
 
-No pip install needed - the script uses only Python standard library.
+No pip install needed. No manual hook setup. The script handles everything.
 
 ## Troubleshooting
 
@@ -112,14 +109,21 @@ ollama pull mistral
 chmod +x .git/hooks/post-merge
 ```
 
+## Commands
+
+```bash
+python generate_changelog.py --install    # Install hook + Ollama + model
+python generate_changelog.py --uninstall  # Remove the hook
+python generate_changelog.py --setup      # Just check/install Ollama
+python generate_changelog.py --auto       # Generate without prompts
+python generate_changelog.py --help       # Show all options
+```
+
 ## Files
 
-- `generate_changelog.py` - Main script (zero dependencies!)
-- `.git/hooks/post-merge` - Git hook (30 lines)
+- `generate_changelog.py` - The only file you need!
 - `CHANGELOG.md` - Generated changelog (auto-created)
-- `DEPLOY.md` - Deployment guide
-- `SETUP.md` - Original detailed setup guide
-- `FILES_NEEDED.md` - File reference (legacy)
+- `.git/hooks/post-merge` - Created by --install (don't copy manually)
 
 ## What Changed?
 
