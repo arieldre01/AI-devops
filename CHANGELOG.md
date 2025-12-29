@@ -1,5 +1,8 @@
 ## Unreleased
 
+- [Feature]: Enhancement to handle merge commits in CI environment by comparing the HEAD^1 (main branch before merging) with HEAD. Now also includes a fallback method using "git show" for non-merge cases, and logging debug information about differing outputs from these methods based on commit type length. Additionally added warning output when no changes are detected after applying diff logic to merge commits.
+
+
 [Feature]: Enhanced `generate_changelog` script for better CI processing by replacing mistral model with 'phi3:mini' that is three times faster on CPUs, implemented wait logic and retry mechanisms when pulling models. Increased timeout duration in the script from 5 min to 10 min across Windows systems.
 
 [Refactor]: Transitioned model from mistral to phi3:mini with updated OLLAMA API URLs; added improved waiting, retries and increased `generate_changelog` script execution time limit for CPU inference tasks by 'phi3:mini' which is three times faster on Windows systems.
