@@ -32,3 +32,9 @@ def is_palindrome(text):
     cleaned = text.lower().replace(" ", "")
     return cleaned == cleaned[::-1]
 
+def truncate(text, max_length, suffix="..."):
+    """Truncate text to max_length, adding suffix if truncated."""
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - len(suffix)] + suffix
+
