@@ -1,3 +1,2 @@
-ollama
-requests
-
+# No external dependencies required!
+# generate_changelog.py uses only Python standard library

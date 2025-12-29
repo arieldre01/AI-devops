@@ -5,22 +5,22 @@ def test_ollama_connection():
     try:
         # Check if Ollama is running
         response = ollama.list()
-        print("✅ Ollama is running!")
+        print("[OK] Ollama is running!")
         print(f"Available models: {[model['name'] for model in response['models']]}")
         return True
     except Exception as e:
-        print(f"❌ Error connecting to Ollama: {e}")
+        print(f"[ERROR] Error connecting to Ollama: {e}")
         print("Make sure Ollama is installed and running (ollama serve)")
         return False
 
 # Pull a model (if needed)
 def pull_model(model_name="mistral"):
     try:
-        print(f"📥 Pulling model: {model_name}...")
+        print(f"Pulling model: {model_name}...")
         ollama.pull(model_name)
-        print(f"✅ Model {model_name} downloaded successfully!")
+        print(f"[OK] Model {model_name} downloaded successfully!")
     except Exception as e:
-        print(f"❌ Error pulling model: {e}")
+        print(f"[ERROR] Error pulling model: {e}")
 
 # Basic chat function
 def chat(prompt, model="mistral"):
@@ -40,5 +40,5 @@ if __name__ == "__main__":
     if test_ollama_connection():
         # Example usage
         result = chat("Hello, how are you?")
-        print(f"\n🤖 Response: {result}")
+        print(f"\nResponse: {result}")
 

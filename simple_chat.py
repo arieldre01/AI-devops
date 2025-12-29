@@ -1,7 +1,7 @@
 import ollama
 
 def simple_chat():
-    print("🤖 Ollama Simple Chat")
+    print("Ollama Simple Chat")
     print("Type 'quit' or 'exit' to end the conversation\n")
     
     # Check if Ollama is running
@@ -10,7 +10,7 @@ def simple_chat():
         models_list = models_response.get('models', [])
         
         if not models_list:
-            print("⚠️  No models found. Pull a model first:")
+            print("[WARN] No models found. Pull a model first:")
             print("   ollama pull mistral")
             return
         
@@ -22,7 +22,7 @@ def simple_chat():
             elif isinstance(m, str):
                 model_names.append(m)
         
-        print(f"✅ Connected! Available models: {model_names}\n")
+        print(f"[OK] Connected! Available models: {model_names}\n")
         
         # Prefer mistral or llama3:8b, fallback to first available, or default to mistral
         model = 'mistral'  # Default lightweight model
@@ -37,7 +37,7 @@ def simple_chat():
                 model = model_names[0]
             
     except Exception as e:
-        print(f"❌ Error connecting to Ollama: {e}")
+        print(f"[ERROR] Error connecting to Ollama: {e}")
         print("Make sure Ollama is running (ollama serve)")
         return
     print(f"Using model: {model}\n")
@@ -53,7 +53,7 @@ def simple_chat():
             continue
             
         if user_input.lower() in ['quit', 'exit', 'q']:
-            print("\n👋 Goodbye!")
+            print("\nGoodbye!")
             break
         
         # Add user message to history
@@ -61,18 +61,18 @@ def simple_chat():
         
         try:
             # Get response from Ollama
-            print("🤖 Thinking...", end='\r')
+            print("Thinking...", end='\r')
             response = ollama.chat(model=model, messages=messages)
             assistant_message = response['message']['content']
             
             # Print response
-            print(f"🤖 {assistant_message}\n")
+            print(f"Assistant: {assistant_message}\n")
             
             # Add assistant response to history
             messages.append(response['message'])
             
         except Exception as e:
-            print(f"\n❌ Error: {e}\n")
+            print(f"\n[ERROR] {e}\n")
             # Remove the last message if there was an error
             messages.pop()
 
