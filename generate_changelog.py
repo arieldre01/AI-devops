@@ -36,8 +36,40 @@ OLLAMA_WINDOWS_URL = "https://ollama.com/download/OllamaSetup.exe"
 OLLAMA_LINUX_INSTALL = "curl -fsSL https://ollama.com/install.sh | sh"
 OLLAMA_MAC_URL = "https://ollama.com/download/Ollama-darwin.zip"
 
-# System prompt for the LLM
-SYSTEM_PROMPT = "You are a Senior Technical Writer. Summarize the following code changes into a single, concise bullet point. Start with a category like [Feature], [Fix], or [Refactor]. Do not output any preamble or conversational text."
+# System prompt for the LLM (Conventional Commits format)
+SYSTEM_PROMPT = """You are a Senior Technical Writer. Summarize the following code changes into a single, concise changelog entry.
+
+Use Conventional Commits format with one of these prefixes:
+- feat: for new features
+- fix: for bug fixes
+- refactor: for code refactoring
+- docs: for documentation changes
+- chore: for maintenance tasks
+- perf: for performance improvements
+- test: for test changes
+
+Example output: feat: add user authentication with OAuth2 support
+
+Do not output any preamble, conversational text, or bullet points. Just the single line entry."""
+
+# Valid prefixes for Conventional Commits
+VALID_PREFIXES = ['feat:', 'fix:', 'refactor:', 'docs:', 'chore:', 'perf:', 'test:']
+
+# Mapping from old format to Conventional format
+FORMAT_MAPPING = {
+    '[feature]': 'feat:',
+    '[feat]': 'feat:',
+    '[fix]': 'fix:',
+    '[bugfix]': 'fix:',
+    '[refactor]': 'refactor:',
+    '[docs]': 'docs:',
+    '[documentation]': 'docs:',
+    '[chore]': 'chore:',
+    '[perf]': 'perf:',
+    '[performance]': 'perf:',
+    '[test]': 'test:',
+    '[tests]': 'test:',
+}
 
 
 # =============================================================================
@@ -667,6 +699,192 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
         return None
 
 
+# =============================================================================
+# Quality Functions: Timestamp, Validation, Deduplication
+# =============================================================================
+
+def get_merge_timestamp() -> str:
+    """
+    Get the timestamp of the current commit in readable format.
+    Returns: "Dec 31, 2025 at 2:30 PM"
+    """
+    try:
+        result = subprocess.run(
+            ["git", "show", "-s", "--format=%ci", "HEAD"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Parse ISO format: "2025-12-31 14:30:00 +0000"
+            from datetime import datetime
+            timestamp_str = result.stdout.strip()
+            # Remove timezone for parsing
+            timestamp_str = timestamp_str.rsplit(' ', 1)[0]
+            dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+            # Format to readable: "Dec 31, 2025 at 2:30 PM"
+            return dt.strftime("%b %d, %Y at %-I:%M %p").replace(" 0", " ")
+    except Exception as e:
+        print(f"[WARN] Could not get commit timestamp: {e}")
+    
+    # Fallback to current time
+    from datetime import datetime
+    return datetime.now().strftime("%b %d, %Y at %-I:%M %p").replace(" 0", " ")
+
+
+def validate_entry(entry: str) -> str:
+    """
+    Ensure entry follows Conventional format, fix if needed.
+    Converts [Feature] -> feat:, [Fix] -> fix:, etc.
+    """
+    entry = entry.strip()
+    
+    # Remove leading bullet points or dashes
+    if entry.startswith('- '):
+        entry = entry[2:]
+    elif entry.startswith('+ '):
+        entry = entry[2:]
+    elif entry.startswith('* '):
+        entry = entry[2:]
+    
+    # Check if already valid
+    entry_lower = entry.lower()
+    for prefix in VALID_PREFIXES:
+        if entry_lower.startswith(prefix):
+            # Ensure proper capitalization: "feat: message"
+            return prefix + entry[len(prefix):]
+    
+    # Try to convert from old format
+    for old_format, new_format in FORMAT_MAPPING.items():
+        if entry_lower.startswith(old_format):
+            rest = entry[len(old_format):].strip()
+            # Remove any following colons or dashes
+            if rest.startswith(':') or rest.startswith('-'):
+                rest = rest[1:].strip()
+            return f"{new_format} {rest}"
+    
+    # If no recognized format, default to feat:
+    return f"feat: {entry}"
+
+
+def calculate_similarity(text1: str, text2: str) -> float:
+    """
+    Calculate similarity between two texts using word overlap.
+    Returns a value between 0 and 1.
+    """
+    words1 = set(text1.lower().split())
+    words2 = set(text2.lower().split())
+    
+    if not words1 or not words2:
+        return 0.0
+    
+    intersection = words1 & words2
+    union = words1 | words2
+    
+    return len(intersection) / len(union)
+
+
+def find_duplicates(entries: list, threshold: float = 0.5) -> list:
+    """
+    Find entries that are too similar (likely duplicates).
+    Returns list of indices to remove (keeps first occurrence).
+    """
+    duplicates_to_remove = set()
+    
+    for i, entry1 in enumerate(entries):
+        if i in duplicates_to_remove:
+            continue
+        for j, entry2 in enumerate(entries[i+1:], start=i+1):
+            if j in duplicates_to_remove:
+                continue
+            similarity = calculate_similarity(entry1, entry2)
+            if similarity >= threshold:
+                duplicates_to_remove.add(j)
+    
+    return sorted(duplicates_to_remove)
+
+
+def parse_changelog_entries(content: str) -> tuple:
+    """
+    Parse CHANGELOG.md content into header, entries, and footer.
+    Returns (header, entries_list, footer).
+    """
+    lines = content.split('\n')
+    header_lines = []
+    entries = []
+    footer_lines = []
+    in_unreleased = False
+    passed_unreleased = False
+    
+    for line in lines:
+        if line.strip().lower().startswith('## unreleased'):
+            in_unreleased = True
+            header_lines.append(line)
+        elif line.strip().startswith('## ') and in_unreleased:
+            # Hit next version section
+            in_unreleased = False
+            passed_unreleased = True
+            footer_lines.append(line)
+        elif in_unreleased:
+            stripped = line.strip()
+            if stripped and not stripped.startswith('#'):
+                entries.append(stripped)
+            elif not stripped:
+                # Empty line, keep for spacing
+                pass
+        elif passed_unreleased:
+            footer_lines.append(line)
+        else:
+            header_lines.append(line)
+    
+    return '\n'.join(header_lines), entries, '\n'.join(footer_lines)
+
+
+def cleanup_changelog_file():
+    """
+    Clean up CHANGELOG.md: remove duplicates and validate format.
+    """
+    changelog_path = Path(CHANGELOG_FILE)
+    
+    if not changelog_path.exists():
+        print(f"[ERROR] {CHANGELOG_FILE} not found")
+        return False
+    
+    content = changelog_path.read_text(encoding='utf-8')
+    header, entries, footer = parse_changelog_entries(content)
+    
+    if not entries:
+        print("[INFO] No entries found to clean up")
+        return True
+    
+    print(f"[INFO] Found {len(entries)} entries")
+    
+    # Validate all entries to Conventional format
+    validated_entries = [validate_entry(e) for e in entries]
+    
+    # Find and remove duplicates
+    duplicates = find_duplicates(validated_entries)
+    if duplicates:
+        print(f"[INFO] Removing {len(duplicates)} duplicate entries")
+        validated_entries = [e for i, e in enumerate(validated_entries) if i not in duplicates]
+    
+    # Rebuild the changelog
+    new_content = header.rstrip() + '\n\n'
+    for entry in validated_entries:
+        new_content += f"- {entry}\n"
+    
+    if footer.strip():
+        new_content += '\n' + footer
+    
+    changelog_path.write_text(new_content, encoding='utf-8')
+    print(f"[OK] Cleaned up {CHANGELOG_FILE}")
+    print(f"     Entries: {len(entries)} -> {len(validated_entries)}")
+    
+    return True
+
+
 def read_changelog() -> str:
     """
     Read the current CHANGELOG.md content.
@@ -683,25 +901,35 @@ def read_changelog() -> str:
 def write_changelog(content: str, new_entry: str):
     """
     Prepend the new entry to the CHANGELOG.md file.
+    Validates entry format and adds timestamp.
     """
     changelog_path = Path(CHANGELOG_FILE)
+    
+    # Validate the entry to Conventional format
+    validated_entry = validate_entry(new_entry)
+    
+    # Get the merge timestamp
+    timestamp = get_merge_timestamp()
+    
+    # Format: "- Dec 31, 2025 at 2:30 PM - feat: description"
+    formatted_entry = f"- {timestamp} - {validated_entry}"
     
     # Prepare the new content
     # If file is empty or doesn't start with a header, add "## Unreleased"
     existing_content = content.strip()
     
     if not existing_content:
-        new_content = f"## Unreleased\n\n{new_entry}\n\n"
+        new_content = f"## Unreleased\n\n{formatted_entry}\n\n"
     elif existing_content.startswith("##"):
         # Prepend after the first header
         lines = existing_content.split('\n', 1)
         if len(lines) > 1:
-            new_content = f"{lines[0]}\n\n{new_entry}\n\n{lines[1]}"
+            new_content = f"{lines[0]}\n\n{formatted_entry}\n\n{lines[1]}"
         else:
-            new_content = f"{existing_content}\n\n{new_entry}\n\n"
+            new_content = f"{existing_content}\n\n{formatted_entry}\n\n"
     else:
         # No header, add one
-        new_content = f"## Unreleased\n\n{new_entry}\n\n{existing_content}\n"
+        new_content = f"## Unreleased\n\n{formatted_entry}\n\n{existing_content}\n"
     
     # Write to file
     changelog_path.write_text(new_content, encoding='utf-8')
@@ -953,9 +1181,15 @@ Options:
     --install     Install the git hook for automatic changelog generation
     --uninstall   Remove the git hook
     --setup       Check/install Ollama and download the model
+    --cleanup     Clean up CHANGELOG.md (remove duplicates, validate format)
     --auto        Generate changelog without confirmation prompt
     --ci          CI mode (non-interactive, for GitHub Actions)
     --help        Show this help message
+
+Format:
+    Entries use Conventional Commits format with timestamps:
+    - Dec 31, 2025 at 2:30 PM - feat: add new feature
+    - Dec 30, 2025 at 10:00 AM - fix: resolve bug in auth
 
 Examples:
     # First-time setup (recommended)
@@ -966,6 +1200,9 @@ Examples:
     
     # Check Ollama setup
     python generate_changelog.py --setup
+    
+    # Clean up existing changelog (remove duplicates)
+    python generate_changelog.py --cleanup
     
     # Remove the hook
     python generate_changelog.py --uninstall
@@ -1004,6 +1241,12 @@ if __name__ == "__main__":
         else:
             print("\n[ERROR] Setup failed.")
             sys.exit(1)
+    
+    # Check for --cleanup flag (remove duplicates and validate format)
+    if '--cleanup' in sys.argv:
+        print("Cleaning up CHANGELOG.md...")
+        success = cleanup_changelog_file()
+        sys.exit(0 if success else 1)
     
     # Check for --ci flag (GitHub Actions mode)
     ci_mode = '--ci' in sys.argv or os.environ.get('GITHUB_ACTIONS') == 'true'
