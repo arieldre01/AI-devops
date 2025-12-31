@@ -503,170 +503,51 @@ def truncate_diff(diff: str, max_chars: int = MAX_DIFF_CHARS) -> str:
     return truncated
 
 
-def get_git_diff() -> Optional[str]:
+def get_diff(mode: str = 'auto') -> Optional[str]:
     """
-    Get the diff of uncommitted changes (staged and unstaged).
-    Returns the diff string or None if no changes detected.
-    """
-    try:
-        # Get staged changes
-        result = subprocess.run(
-            ["git", "diff", "--cached"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
-        staged_diff = result.stdout if result.stdout else ""
-        
-        # Get unstaged changes
-        result = subprocess.run(
-            ["git", "diff"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
-        unstaged_diff = result.stdout if result.stdout else ""
-        
-        # Combine both
-        combined_diff = staged_diff + unstaged_diff
-        
-        if not combined_diff.strip():
-            return None
-        
-        return combined_diff
+    Get git diff based on the context.
     
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Error running git command: {e}")
-        return None
-    except FileNotFoundError:
-        print("[ERROR] Git is not installed or not in PATH")
-        return None
-
-
-def get_ci_diff() -> Optional[str]:
-    """
-    Get the diff for CI environment (GitHub Actions).
-    For merge commits, gets the diff between first parent and HEAD.
+    Args:
+        mode: 'auto' (detect), 'ci' (merge commit), 'local' (uncommitted), 'merge' (post-merge hook)
+    
     Returns the diff string or None if no changes detected.
     """
     try:
-        # For merge commits (like GitHub PR merges), use diff from first parent
-        print("[DEBUG] Getting CI diff using: git diff HEAD^1 HEAD")
-        result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
-        diff = result.stdout or ""
-        print(f"[DEBUG] Diff length from HEAD^1: {len(diff)} chars")
+        diff = ""
         
-        # If that fails (not a merge commit), try git show
-        if not diff.strip():
-            print("[DEBUG] No diff from HEAD^1, trying git show HEAD")
-            result = run_git_command(["git", "show", "--format=", "--no-color", "HEAD"])
+        if mode == 'ci':
+            # CI mode: compare HEAD^1 to HEAD (merge commit diff)
+            result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
             diff = result.stdout or ""
-            print(f"[DEBUG] Diff length from git show: {len(diff)} chars")
+            
+            # Fallback to git show if no diff
+            if not diff.strip():
+                result = run_git_command(["git", "show", "--format=", "--no-color", "HEAD"])
+                diff = result.stdout or ""
         
-        if not diff.strip():
-            print("[WARN] No diff found for this commit")
-            return None
+        elif mode == 'merge':
+            # Post-merge hook: check ORIG_HEAD first (handles fast-forward merges)
+            orig_check = run_git_command(["git", "rev-parse", "--verify", "ORIG_HEAD"])
+            
+            if orig_check.returncode == 0 and orig_check.stdout.strip():
+                # ORIG_HEAD exists - use it for accurate diff
+                result = run_git_command(["git", "diff", "ORIG_HEAD", "HEAD", "--no-color"])
+                diff = result.stdout or ""
+            else:
+                # No ORIG_HEAD, fall back to HEAD^1
+                result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
+                diff = result.stdout or ""
         
-        return diff
+        else:
+            # Local mode: get uncommitted changes (staged + unstaged)
+            staged = run_git_command(["git", "diff", "--cached"])
+            unstaged = run_git_command(["git", "diff"])
+            diff = (staged.stdout or "") + (unstaged.stdout or "")
+        
+        return diff.strip() if diff.strip() else None
     
     except Exception as e:
-        print(f"[ERROR] Error getting CI diff: {e}")
-        return None
-
-
-def get_merge_diff() -> Optional[str]:
-    """
-    Get the diff between HEAD and ORIG_HEAD (for merge commits).
-    ORIG_HEAD is set by git to the previous HEAD before merge.
-    Returns the diff string or None if no changes detected.
-    """
-    try:
-        # Check if ORIG_HEAD exists (set by git before merge)
-        orig_head_check = subprocess.run(
-            ["git", "rev-parse", "--verify", "ORIG_HEAD"],
-            capture_output=True,
-            check=False
-        )
-        
-        # Check if this is a merge commit (has two parents)
-        merge_check = subprocess.run(
-            ["git", "rev-parse", "--verify", "HEAD^2"],
-            capture_output=True,
-            check=False
-        )
-        
-        if merge_check.returncode == 0:
-            # This is a merge commit with two parents
-            # Get diff between the merged branch and current HEAD
-            result = subprocess.run(
-                ["git", "diff", "HEAD^1", "HEAD"],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                check=False
-            )
-            diff = result.stdout if result.stdout else ""
-        elif orig_head_check.returncode == 0:
-            # ORIG_HEAD exists, use it (fast-forward merge)
-            orig_head = orig_head_check.stdout.strip()
-            current_head = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                check=True
-            ).stdout.strip()
-            
-            # Only proceed if they're different
-            if orig_head != current_head:
-                result = subprocess.run(
-                    ["git", "diff", orig_head, current_head],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    check=False
-                )
-                diff = result.stdout if result.stdout else ""
-            else:
-                # Fallback: compare HEAD~1 to HEAD (last commit)
-                result = subprocess.run(
-                    ["git", "diff", "HEAD~1", "HEAD"],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    check=False
-                )
-                diff = result.stdout if result.stdout else ""
-        else:
-            # No ORIG_HEAD, try comparing HEAD~1 to HEAD
-            result = subprocess.run(
-                ["git", "diff", "HEAD~1", "HEAD"],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                check=False
-            )
-            diff = result.stdout if result.stdout else ""
-        
-        if not diff or not diff.strip():
-            return None
-        
-        return diff
-    
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] Error running git command: {e}")
-        return None
-    except FileNotFoundError:
-        print("[ERROR] Git is not installed or not in PATH")
+        print(f"[ERROR] Error getting diff: {e}")
         return None
 
 
@@ -858,122 +739,6 @@ def validate_entry(entry: str) -> str:
     return f"feat: {entry}"
 
 
-def calculate_similarity(text1: str, text2: str) -> float:
-    """
-    Calculate similarity between two texts using word overlap.
-    Returns a value between 0 and 1.
-    """
-    words1 = set(text1.lower().split())
-    words2 = set(text2.lower().split())
-    
-    if not words1 or not words2:
-        return 0.0
-    
-    intersection = words1 & words2
-    union = words1 | words2
-    
-    return len(intersection) / len(union)
-
-
-def find_duplicates(entries: list, threshold: float = 0.5) -> list:
-    """
-    Find entries that are too similar (likely duplicates).
-    Returns list of indices to remove (keeps first occurrence).
-    """
-    duplicates_to_remove = set()
-    
-    for i, entry1 in enumerate(entries):
-        if i in duplicates_to_remove:
-            continue
-        for j, entry2 in enumerate(entries[i+1:], start=i+1):
-            if j in duplicates_to_remove:
-                continue
-            similarity = calculate_similarity(entry1, entry2)
-            if similarity >= threshold:
-                duplicates_to_remove.add(j)
-    
-    return sorted(duplicates_to_remove)
-
-
-def parse_changelog_entries(content: str) -> tuple:
-    """
-    Parse CHANGELOG.md content into header, entries, and footer.
-    Returns (header, entries_list, footer).
-    """
-    lines = content.split('\n')
-    header_lines = []
-    entries = []
-    footer_lines = []
-    in_unreleased = False
-    passed_unreleased = False
-    
-    for line in lines:
-        if line.strip().lower().startswith('## unreleased'):
-            in_unreleased = True
-            header_lines.append(line)
-        elif line.strip().startswith('## ') and in_unreleased:
-            # Hit next version section
-            in_unreleased = False
-            passed_unreleased = True
-            footer_lines.append(line)
-        elif in_unreleased:
-            stripped = line.strip()
-            if stripped and not stripped.startswith('#'):
-                entries.append(stripped)
-            elif not stripped:
-                # Empty line, keep for spacing
-                pass
-        elif passed_unreleased:
-            footer_lines.append(line)
-        else:
-            header_lines.append(line)
-    
-    return '\n'.join(header_lines), entries, '\n'.join(footer_lines)
-
-
-def cleanup_changelog_file():
-    """
-    Clean up CHANGELOG.md: remove duplicates and validate format.
-    """
-    changelog_path = Path(CHANGELOG_FILE)
-    
-    if not changelog_path.exists():
-        print(f"[ERROR] {CHANGELOG_FILE} not found")
-        return False
-    
-    content = changelog_path.read_text(encoding='utf-8')
-    header, entries, footer = parse_changelog_entries(content)
-    
-    if not entries:
-        print("[INFO] No entries found to clean up")
-        return True
-    
-    print(f"[INFO] Found {len(entries)} entries")
-    
-    # Validate all entries to Conventional format
-    validated_entries = [validate_entry(e) for e in entries]
-    
-    # Find and remove duplicates
-    duplicates = find_duplicates(validated_entries)
-    if duplicates:
-        print(f"[INFO] Removing {len(duplicates)} duplicate entries")
-        validated_entries = [e for i, e in enumerate(validated_entries) if i not in duplicates]
-    
-    # Rebuild the changelog
-    new_content = header.rstrip() + '\n\n'
-    for entry in validated_entries:
-        new_content += f"- {entry}\n"
-    
-    if footer.strip():
-        new_content += '\n' + footer
-    
-    changelog_path.write_text(new_content, encoding='utf-8')
-    print(f"[OK] Cleaned up {CHANGELOG_FILE}")
-    print(f"     Entries: {len(entries)} -> {len(validated_entries)}")
-    
-    return True
-
-
 def read_changelog() -> str:
     """
     Read the current CHANGELOG.md content.
@@ -1051,14 +816,14 @@ def main(auto_write=False, ci_mode=False):
     is_post_merge = os.environ.get('GIT_HOOK') == 'post-merge'
     
     if is_ci:
-        print("Detected CI environment (GitHub Actions), checking merge changes...")
-        diff = get_ci_diff()
+        print("Checking CI merge changes...")
+        diff = get_diff(mode='ci')
     elif is_post_merge:
-        print("Detected post-merge hook, checking merge changes...")
-        diff = get_merge_diff()
+        print("Checking post-merge changes...")
+        diff = get_diff(mode='merge')
     else:
         print("Checking for uncommitted changes...")
-        diff = get_git_diff()
+        diff = get_diff(mode='local')
     
     if not diff:
         print("[INFO] No changes detected")
@@ -1272,7 +1037,6 @@ Options:
     --install     Install the git hook for automatic changelog generation
     --uninstall   Remove the git hook
     --setup       Check/install Ollama and download the model
-    --cleanup     Clean up CHANGELOG.md (remove duplicates, validate format)
     --auto        Generate changelog without confirmation prompt
     --ci          CI mode (auto-detect platform: GitHub, Bitbucket, GitLab)
     --github      Force GitHub Actions mode
@@ -1302,9 +1066,6 @@ Examples:
     # Check Ollama setup
     python generate_changelog.py --setup
     
-    # Clean up existing changelog (remove duplicates)
-    python generate_changelog.py --cleanup
-    
     # CI mode with auto-detection
     python generate_changelog.py --ci
     
@@ -1314,13 +1075,6 @@ Examples:
     # Remove the hook
     python generate_changelog.py --uninstall
 """)
-
-
-def count_to_ten():
-    """Simple function that counts from 0 to 10."""
-    for i in range(11):
-        print(i)
-    return 10
 
 
 if __name__ == "__main__":
@@ -1348,12 +1102,6 @@ if __name__ == "__main__":
         else:
             print("\n[ERROR] Setup failed.")
             sys.exit(1)
-    
-    # Check for --cleanup flag (remove duplicates and validate format)
-    if '--cleanup' in sys.argv:
-        print("Cleaning up CHANGELOG.md...")
-        success = cleanup_changelog_file()
-        sys.exit(0 if success else 1)
     
     # Detect CI platform (with CLI override support)
     if '--github' in sys.argv:
