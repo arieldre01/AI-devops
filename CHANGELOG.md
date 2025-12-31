@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Dec 31, 2025 at 8:26 AM - feat: add installation of Ollama if not installed and skip retry logic for model pull to ensure backward compatibility with previous changes. Also, introduce a cleanup step before new changelog generation in CI mode or when the --cleanup flag is provided by removing duplicates from existing CHANGELOG.md (maintain only unique entries).
+
+
 - Dec 31, 2025 at 10:23 AM - feat: refactor script to enhance CI processing on Windows using phi3:mini for better performance execution of generate_changelog during merge commits handling with cleanup functionality [ci/test]
 
 
