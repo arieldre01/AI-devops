@@ -33,9 +33,14 @@ jobs:
           path: ~/.ollama
           key: ollama-phi3-mini-v1
       
-      - name: Install Ollama
+      - name: Install Ollama (if not installed)
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
+          if ! command -v ollama &> /dev/null; then
+            echo "Ollama not found, installing..."
+            curl -fsSL https://ollama.com/install.sh | sh
+          else
+            echo "Ollama already installed, skipping..."
+          fi
       
       - name: Start Ollama service and wait for ready
         run: |
@@ -50,17 +55,23 @@ jobs:
             sleep 2
           done
       
-      - name: Pull Mistral model (if not cached)
+      - name: Pull phi3:mini model (if not available)
         run: |
-          # Retry logic for model pull
-          for i in {1..3}; do
-            if ollama pull phi3:mini; then
-              echo "Model pulled successfully!"
-              break
-            fi
-            echo "Retrying model pull... ($i/3)"
-            sleep 5
-          done
+          # Check if model already exists
+          if ollama list | grep -q "phi3:mini"; then
+            echo "Model phi3:mini already available, skipping download..."
+          else
+            echo "Model not found, downloading..."
+            # Retry logic for model pull
+            for i in {1..3}; do
+              if ollama pull phi3:mini; then
+                echo "Model pulled successfully!"
+                break
+              fi
+              echo "Retrying model pull... ($i/3)"
+              sleep 5
+            done
+          fi
       
       - name: Generate changelog entry
         run: |
