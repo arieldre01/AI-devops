@@ -972,6 +972,13 @@ Examples:
 """)
 
 
+def count_to_ten():
+    """Simple function that counts from 0 to 10."""
+    for i in range(11):
+        print(i)
+    return 10
+
+
 if __name__ == "__main__":
     # Check for --help
     if '--help' in sys.argv or '-h' in sys.argv:
