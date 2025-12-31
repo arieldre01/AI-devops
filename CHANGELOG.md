@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Dec 31, 2025 at 10:34 AM | 0 files | by arieldre01 - feat: feat(Dec. 31, 2025): Add installation of Ollama if not installed and skip retry logic for model pull to ensure backward compatibility with previous changes [ci/test] - refactor: script enhancement on Windows using phi3:mini for better performance execution in generate_changelog during merge commits handling, introducing cleanup functionality (maintain only unique entries)
+
+
 - Dec 31, 2025 at 8:26 AM - feat: add installation of Ollama if not installed and skip retry logic for model pull to ensure backward compatibility with previous changes. Also, introduce a cleanup step before new changelog generation in CI mode or when the --cleanup flag is provided by removing duplicates from existing CHANGELOG.md (maintain only unique entries).
 
 
