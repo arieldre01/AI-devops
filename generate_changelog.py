@@ -779,7 +779,11 @@ def write_changelog(content: str, new_entry: str):
     elif "## Unreleased" in existing_content:
         # Find the Unreleased section and insert after it
         parts = existing_content.split("## Unreleased", 1)
-        new_content = f"{parts[0]}## Unreleased\n\n{formatted_entry}\n{parts[1]}"
+        rest = parts[1].strip()
+        if rest:
+            new_content = f"{parts[0]}## Unreleased\n\n{formatted_entry}\n\n{rest}\n"
+        else:
+            new_content = f"{parts[0]}## Unreleased\n\n{formatted_entry}\n"
     elif existing_content.startswith("#"):
         # Has a header but no Unreleased section - add one after the first header line
         lines = existing_content.split('\n', 1)
