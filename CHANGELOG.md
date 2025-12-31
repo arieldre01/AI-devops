@@ -1,5 +1,8 @@
 ## Unreleased
 
+[Feature] Add conditional installation prompts based on the presence of Ollama. Ensure rollback in case Ollama fails to start within specified time frame post-installation attempts, as well refactored update from mistral:mistral model pull to phi3:mini with a retry mechanism and logging system enhancements for better traceability on operations statuses before downloading.
+
+
 [Feature]: Changed the `generate_changelog` script to enhance CI processing on Windows systems using phi3:mini with three times faster CPUs, including wait/retry mechanisms and increased timeout duration for better performance during changelog generation. This refactor also transitioned from mistral model API URLs to phi3:mini APIs and improved retry logic based on commit type length.
 [Feature]: Added a simple `count_to_ten` function within the script, which counts numbers 0-10 using Python's for loop functionality.
 
