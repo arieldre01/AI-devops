@@ -1,5 +1,12 @@
 ## Unreleased
 
+- Dec 31, 2025 at 12:33 PM | 1 file | by arieldre01 - feat: implement get_diff with auto mode and optional cleanup feature for CHANGELOG file
+
+--- Example Usage ---
+# To use the default behavior of fetching diffs from Git, no additional arguments are required when invoking `generate_changelog.py`. This will automatically detect if there're uncommitted changes in both staged and unstaged states to generate a combined git diff output as part of your changelog. Additionally, you can specify the `--cleanup` flag followed by GitHub or Bitbucket (or similar) CLI override for customized cleanups on existing CHANGELOG files.
+# Example command: `python generate_changelog.py --github --cleanup`
+
+
 - Dec 31, 2025 at 12:07 PM | 3 files | by arieldre01 - feat: Multi-platform CI support (GitHub, Bitbucket, GitLab) and self-hosted runner setup for Ollama pre-installed [performed by the author of this PR]
 
 
