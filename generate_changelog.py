@@ -12,6 +12,8 @@ import json
 import time
 import tempfile
 import shutil
+import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from urllib.request import urlopen, Request
@@ -70,6 +72,22 @@ FORMAT_MAPPING = {
     '[test]': 'test:',
     '[tests]': 'test:',
 }
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def run_git_command(args: list) -> subprocess.CompletedProcess:
+    """Run a git command with standard options for cross-platform compatibility."""
+    return subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+        check=False
+    )
 
 
 # =============================================================================
@@ -506,34 +524,19 @@ def get_ci_diff() -> Optional[str]:
     """
     try:
         # For merge commits (like GitHub PR merges), use diff from first parent
-        # HEAD^1 is the main branch before merge, HEAD is after merge
         print("[DEBUG] Getting CI diff using: git diff HEAD^1 HEAD")
-        result = subprocess.run(
-            ["git", "diff", "HEAD^1", "HEAD", "--no-color"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
-        diff = result.stdout if result.stdout else ""
+        result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
+        diff = result.stdout or ""
         print(f"[DEBUG] Diff length from HEAD^1: {len(diff)} chars")
         
         # If that fails (not a merge commit), try git show
         if not diff.strip():
             print("[DEBUG] No diff from HEAD^1, trying git show HEAD")
-            result = subprocess.run(
-                ["git", "show", "--format=", "--no-color", "HEAD"],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-                check=False
-            )
-            diff = result.stdout if result.stdout else ""
+            result = run_git_command(["git", "show", "--format=", "--no-color", "HEAD"])
+            diff = result.stdout or ""
             print(f"[DEBUG] Diff length from git show: {len(diff)} chars")
         
-        if not diff or not diff.strip():
+        if not diff.strip():
             print("[WARN] No diff found for this commit")
             return None
         
@@ -720,17 +723,8 @@ def get_merge_timestamp() -> str:
     Get the timestamp of the current commit in readable format.
     Returns: "Dec 31, 2025 at 2:30 PM"
     """
-    from datetime import datetime
-    
     try:
-        result = subprocess.run(
-            ["git", "show", "-s", "--format=%ci", "HEAD"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
+        result = run_git_command(["git", "show", "-s", "--format=%ci", "HEAD"])
         if result.returncode == 0 and result.stdout.strip():
             # Parse ISO format: "2025-12-31 14:30:00 +0000"
             timestamp_str = result.stdout.strip()
@@ -753,37 +747,16 @@ def get_files_changed_count() -> int:
     """
     try:
         # For merge commits (like GitHub PR merges), use diff from first parent
-        result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD^1", "HEAD"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
-        # If command succeeded, trust the result (even if 0 files)
+        result = run_git_command(["git", "diff", "--name-only", "HEAD^1", "HEAD"])
         if result.returncode == 0:
             stdout = result.stdout.strip()
-            if stdout:
-                files = [f for f in stdout.split('\n') if f]
-                return len(files)
-            return 0  # Command succeeded but no files changed
+            return len([f for f in stdout.split('\n') if f]) if stdout else 0
         
         # Fallback for non-merge commits (only if first command failed)
-        result = subprocess.run(
-            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
+        result = run_git_command(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"])
         if result.returncode == 0:
             stdout = result.stdout.strip()
-            if stdout:
-                files = [f for f in stdout.split('\n') if f]
-                return len(files)
-            return 0
+            return len([f for f in stdout.split('\n') if f]) if stdout else 0
     except Exception as e:
         print(f"[WARN] Could not get files changed count: {e}")
     return 0
@@ -795,14 +768,7 @@ def get_commit_author() -> str:
     Returns the author name.
     """
     try:
-        result = subprocess.run(
-            ["git", "show", "-s", "--format=%an", "HEAD"],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace',
-            check=False
-        )
+        result = run_git_command(["git", "show", "-s", "--format=%an", "HEAD"])
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     except Exception as e:
@@ -816,8 +782,6 @@ def validate_entry(entry: str) -> str:
     Converts [Feature] -> feat:, [Fix] -> fix:, etc.
     Preserves entries that already have timestamp metadata format.
     """
-    import re
-    
     entry = entry.strip()
     
     # Remove leading bullet points or dashes
