@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Dec 31, 2025 at 10:46 AM | 1 file | by arieldre01 - feat: reduce MAX_DIFF_CHARS for faster CI processing to improve diff focus and speed (maxed out from 4000 to 2000)
+
+
 - Dec 31, 2025 at 10:34 AM | 0 files | by arieldre01 - feat: feat(Dec. 31, 2025): Add installation of Ollama if not installed and skip retry logic for model pull to ensure backward compatibility with previous changes [ci/test] - refactor: script enhancement on Windows using phi3:mini for better performance execution in generate_changelog during merge commits handling, introducing cleanup functionality (maintain only unique entries)
 
 
