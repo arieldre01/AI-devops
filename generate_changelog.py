@@ -792,7 +792,10 @@ def validate_entry(entry: str) -> str:
     """
     Ensure entry follows Conventional format, fix if needed.
     Converts [Feature] -> feat:, [Fix] -> fix:, etc.
+    Preserves entries that already have timestamp metadata format.
     """
+    import re
+    
     entry = entry.strip()
     
     # Remove leading bullet points or dashes
@@ -803,7 +806,22 @@ def validate_entry(entry: str) -> str:
     elif entry.startswith('* '):
         entry = entry[2:]
     
-    # Check if already valid
+    # Check if entry already has timestamp metadata format:
+    # "Dec 31, 2025 at 2:30 PM | 3 files | by John - feat: description"
+    # or older format: "Dec 31, 2025 at 2:30 PM - feat: description"
+    timestamp_pattern = r'^[A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2} [AP]M'
+    if re.match(timestamp_pattern, entry):
+        # Entry already has timestamp, check if it has a valid prefix after the metadata
+        # Look for " - feat:" or " | by ... - feat:" pattern
+        for prefix in VALID_PREFIXES:
+            if f" - {prefix}" in entry.lower():
+                # Already properly formatted with timestamp and valid prefix
+                return entry
+        # Has timestamp but no valid prefix - this shouldn't happen normally
+        # Return as-is to avoid corruption
+        return entry
+    
+    # Check if already valid (starts with conventional prefix)
     entry_lower = entry.lower()
     for prefix in VALID_PREFIXES:
         if entry_lower.startswith(prefix):
