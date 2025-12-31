@@ -771,21 +771,23 @@ def write_changelog(content: str, new_entry: str):
     formatted_entry = f"- {timestamp} | {files_changed} file{'s' if files_changed != 1 else ''} | by {author} - {validated_entry}"
     
     # Prepare the new content
-    # If file is empty or doesn't start with a header, add "## Unreleased"
     existing_content = content.strip()
     
     if not existing_content:
-        new_content = f"## Unreleased\n\n{formatted_entry}\n\n"
-    elif existing_content.startswith("##"):
-        # Prepend after the first header
+        # Empty file - create structure
+        new_content = f"# Changelog\n\n## Unreleased\n\n{formatted_entry}\n"
+    elif "## Unreleased" in existing_content:
+        # Find the Unreleased section and insert after it
+        parts = existing_content.split("## Unreleased", 1)
+        new_content = f"{parts[0]}## Unreleased\n\n{formatted_entry}\n{parts[1]}"
+    elif existing_content.startswith("#"):
+        # Has a header but no Unreleased section - add one after the first header line
         lines = existing_content.split('\n', 1)
-        if len(lines) > 1:
-            new_content = f"{lines[0]}\n\n{formatted_entry}\n\n{lines[1]}"
-        else:
-            new_content = f"{existing_content}\n\n{formatted_entry}\n\n"
+        rest = lines[1].strip() if len(lines) > 1 else ""
+        new_content = f"{lines[0]}\n\n## Unreleased\n\n{formatted_entry}\n\n{rest}\n" if rest else f"{lines[0]}\n\n## Unreleased\n\n{formatted_entry}\n"
     else:
-        # No header, add one
-        new_content = f"## Unreleased\n\n{formatted_entry}\n\n{existing_content}\n"
+        # No header at all - create full structure
+        new_content = f"# Changelog\n\n## Unreleased\n\n{formatted_entry}\n\n{existing_content}\n"
     
     # Write to file
     changelog_path.write_text(new_content, encoding='utf-8')
