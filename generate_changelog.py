@@ -29,7 +29,7 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
 MODEL = "phi3:mini"  # Fast model for CI - 3x faster than mistral on CPU
 CHANGELOG_FILE = "CHANGELOG.md"
-MAX_DIFF_CHARS = 4000  # Limit diff size for faster CI processing
+MAX_DIFF_CHARS = 2000  # Smaller diff for faster and more focused CI processing
 
 # Ollama download URLs
 OLLAMA_WINDOWS_URL = "https://ollama.com/download/OllamaSetup.exe"
@@ -748,9 +748,24 @@ def get_merge_timestamp() -> str:
 def get_files_changed_count() -> int:
     """
     Get the number of files changed in the current commit.
+    For merge commits, compares HEAD^1 to HEAD.
     Returns the count of changed files.
     """
     try:
+        # For merge commits (like GitHub PR merges), use diff from first parent
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "HEAD^1", "HEAD"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            files = [f for f in result.stdout.strip().split('\n') if f]
+            return len(files)
+        
+        # Fallback for non-merge commits
         result = subprocess.run(
             ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
             capture_output=True,
