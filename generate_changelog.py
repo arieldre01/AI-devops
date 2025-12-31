@@ -703,11 +703,25 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
 # Quality Functions: Timestamp, Validation, Deduplication
 # =============================================================================
 
+def format_timestamp(dt) -> str:
+    """
+    Format datetime to readable string: "Dec 31, 2025 at 2:30 PM"
+    Cross-platform compatible (avoids %-I which is POSIX-only).
+    """
+    # Use %I (with leading zero) then strip it manually for cross-platform support
+    formatted = dt.strftime("%b %d, %Y at %I:%M %p")
+    # Remove leading zero from hour: "at 02:30" -> "at 2:30"
+    formatted = formatted.replace(" at 0", " at ")
+    return formatted
+
+
 def get_merge_timestamp() -> str:
     """
     Get the timestamp of the current commit in readable format.
     Returns: "Dec 31, 2025 at 2:30 PM"
     """
+    from datetime import datetime
+    
     try:
         result = subprocess.run(
             ["git", "show", "-s", "--format=%ci", "HEAD"],
@@ -719,19 +733,16 @@ def get_merge_timestamp() -> str:
         )
         if result.returncode == 0 and result.stdout.strip():
             # Parse ISO format: "2025-12-31 14:30:00 +0000"
-            from datetime import datetime
             timestamp_str = result.stdout.strip()
             # Remove timezone for parsing
             timestamp_str = timestamp_str.rsplit(' ', 1)[0]
             dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-            # Format to readable: "Dec 31, 2025 at 2:30 PM"
-            return dt.strftime("%b %d, %Y at %-I:%M %p").replace(" 0", " ")
+            return format_timestamp(dt)
     except Exception as e:
         print(f"[WARN] Could not get commit timestamp: {e}")
     
     # Fallback to current time
-    from datetime import datetime
-    return datetime.now().strftime("%b %d, %Y at %-I:%M %p").replace(" 0", " ")
+    return format_timestamp(datetime.now())
 
 
 def validate_entry(entry: str) -> str:
