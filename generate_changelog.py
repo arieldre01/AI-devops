@@ -96,6 +96,29 @@ def detect_ci_platform() -> str:
     return 'local'
 
 
+def is_non_interactive_mode() -> bool:
+    """
+    Check if running in non-interactive mode (CI or auto mode).
+    Used to skip user prompts during automated runs.
+    """
+    # Check for auto/hook modes
+    if os.environ.get('GIT_HOOK') == 'post-merge':
+        return True
+    if '--auto' in sys.argv:
+        return True
+    
+    # Check for CI flags
+    ci_flags = ['--ci', '--github', '--bitbucket', '--gitlab']
+    if any(flag in sys.argv for flag in ci_flags):
+        return True
+    
+    # Check for CI environment variables
+    if detect_ci_platform() != 'local':
+        return True
+    
+    return False
+
+
 def run_git_command(args: list) -> subprocess.CompletedProcess:
     """Run a git command with standard options for cross-platform compatibility."""
     return subprocess.run(
@@ -375,12 +398,7 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
             return False
         
         # Prompt user for installation (skip in auto mode or CI)
-        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
-                        '--auto' in sys.argv or 
-                        '--ci' in sys.argv or 
-                        os.environ.get('GITHUB_ACTIONS') == 'true')
-        
-        if not is_auto_mode:
+        if not is_non_interactive_mode():
             response = input("   Would you like to install Ollama now? [Y/n]: ").strip().lower()
             if response and response not in ['y', 'yes']:
                 print("   Skipping installation")
@@ -413,12 +431,7 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
         print(f"   The model is required for AI-powered changelog generation.")
         
         # In auto mode or CI, just download it
-        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
-                        '--auto' in sys.argv or 
-                        '--ci' in sys.argv or 
-                        os.environ.get('GITHUB_ACTIONS') == 'true')
-        
-        if not is_auto_mode:
+        if not is_non_interactive_mode():
             response = input(f"   Download '{MODEL}' model now? (~4GB) [Y/n]: ").strip().lower()
             if response and response not in ['y', 'yes']:
                 print("   Skipping model download")
