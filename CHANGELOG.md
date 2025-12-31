@@ -1,6 +1,7 @@
 ## Unreleased
 
-[Feature] - Enhanced `generate_changelog` script to handle CI processing with mistral model using faster CPUs and improved timeout duration on Windows systems, including wait/retry mechanisms for pulling models. Transitioned to phi3:mini API URLs and added better waiting retry logic for performance during CI tasks tuned for 'phi3:mini' inference speedup three times faster than mistral model in the same environment with increased timeout duration on Windows platforms, along with a fallback using `git show`.
+[Feature]: Changed the `generate_changelog` script to enhance CI processing on Windows systems using phi3:mini with three times faster CPUs, including wait/retry mechanisms and increased timeout duration for better performance during changelog generation. This refactor also transitioned from mistral model API URLs to phi3:mini APIs and improved retry logic based on commit type length.
+[Feature]: Added a simple `count_to_ten` function within the script, which counts numbers 0-10 using Python's for loop functionality.
 
 
 - [Feature]: Enhancement to handle merge commits in CI environment by comparing the HEAD^1 (main branch before merging) with HEAD. Now also includes a fallback method using "git show" for non-merge cases, logging debug information about differing outputs based on commit type length and warning output when no changes are detected after applying diff logic to merge commits.
