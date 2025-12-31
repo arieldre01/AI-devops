@@ -761,11 +761,15 @@ def get_files_changed_count() -> int:
             errors='replace',
             check=False
         )
-        if result.returncode == 0 and result.stdout.strip():
-            files = [f for f in result.stdout.strip().split('\n') if f]
-            return len(files)
+        # If command succeeded, trust the result (even if 0 files)
+        if result.returncode == 0:
+            stdout = result.stdout.strip()
+            if stdout:
+                files = [f for f in stdout.split('\n') if f]
+                return len(files)
+            return 0  # Command succeeded but no files changed
         
-        # Fallback for non-merge commits
+        # Fallback for non-merge commits (only if first command failed)
         result = subprocess.run(
             ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
             capture_output=True,
@@ -774,9 +778,12 @@ def get_files_changed_count() -> int:
             errors='replace',
             check=False
         )
-        if result.returncode == 0 and result.stdout.strip():
-            files = [f for f in result.stdout.strip().split('\n') if f]
-            return len(files)
+        if result.returncode == 0:
+            stdout = result.stdout.strip()
+            if stdout:
+                files = [f for f in stdout.split('\n') if f]
+                return len(files)
+            return 0
     except Exception as e:
         print(f"[WARN] Could not get files changed count: {e}")
     return 0
