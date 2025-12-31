@@ -745,11 +745,57 @@ def get_merge_timestamp() -> str:
     return format_timestamp(datetime.now())
 
 
+def get_files_changed_count() -> int:
+    """
+    Get the number of files changed in the current commit.
+    Returns the count of changed files.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            files = [f for f in result.stdout.strip().split('\n') if f]
+            return len(files)
+    except Exception as e:
+        print(f"[WARN] Could not get files changed count: {e}")
+    return 0
+
+
+def get_commit_author() -> str:
+    """
+    Get the author of the current commit.
+    Returns the author name.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "show", "-s", "--format=%an", "HEAD"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            check=False
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception as e:
+        print(f"[WARN] Could not get commit author: {e}")
+    return "Unknown"
+
+
 def validate_entry(entry: str) -> str:
     """
     Ensure entry follows Conventional format, fix if needed.
     Converts [Feature] -> feat:, [Fix] -> fix:, etc.
+    Preserves entries that already have timestamp metadata format.
     """
+    import re
+    
     entry = entry.strip()
     
     # Remove leading bullet points or dashes
@@ -760,7 +806,22 @@ def validate_entry(entry: str) -> str:
     elif entry.startswith('* '):
         entry = entry[2:]
     
-    # Check if already valid
+    # Check if entry already has timestamp metadata format:
+    # "Dec 31, 2025 at 2:30 PM | 3 files | by John - feat: description"
+    # or older format: "Dec 31, 2025 at 2:30 PM - feat: description"
+    timestamp_pattern = r'^[A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2} [AP]M'
+    if re.match(timestamp_pattern, entry):
+        # Entry already has timestamp, check if it has a valid prefix after the metadata
+        # Look for " - feat:" or " | by ... - feat:" pattern
+        for prefix in VALID_PREFIXES:
+            if f" - {prefix}" in entry.lower():
+                # Already properly formatted with timestamp and valid prefix
+                return entry
+        # Has timestamp but no valid prefix - this shouldn't happen normally
+        # Return as-is to avoid corruption
+        return entry
+    
+    # Check if already valid (starts with conventional prefix)
     entry_lower = entry.lower()
     for prefix in VALID_PREFIXES:
         if entry_lower.startswith(prefix):
@@ -919,11 +980,13 @@ def write_changelog(content: str, new_entry: str):
     # Validate the entry to Conventional format
     validated_entry = validate_entry(new_entry)
     
-    # Get the merge timestamp
+    # Get commit metadata
     timestamp = get_merge_timestamp()
+    files_changed = get_files_changed_count()
+    author = get_commit_author()
     
-    # Format: "- Dec 31, 2025 at 2:30 PM - feat: description"
-    formatted_entry = f"- {timestamp} - {validated_entry}"
+    # Format: "- Dec 31, 2025 at 2:30 PM | 3 files | by John - feat: description"
+    formatted_entry = f"- {timestamp} | {files_changed} file{'s' if files_changed != 1 else ''} | by {author} - {validated_entry}"
     
     # Prepare the new content
     # If file is empty or doesn't start with a header, add "## Unreleased"
@@ -1198,9 +1261,9 @@ Options:
     --help        Show this help message
 
 Format:
-    Entries use Conventional Commits format with timestamps:
-    - Dec 31, 2025 at 2:30 PM - feat: add new feature
-    - Dec 30, 2025 at 10:00 AM - fix: resolve bug in auth
+    Entries use Conventional Commits format with metadata:
+    - Dec 31, 2025 at 2:30 PM | 3 files | by John - feat: add new feature
+    - Dec 30, 2025 at 10:00 AM | 1 file | by Jane - fix: resolve bug in auth
 
 Examples:
     # First-time setup (recommended)
