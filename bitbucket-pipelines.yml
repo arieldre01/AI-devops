@@ -1,0 +1,65 @@
+# Bitbucket Pipelines configuration for automatic changelog generation
+# Requires a self-hosted runner with Ollama pre-installed
+
+image: python:3.11
+
+definitions:
+  steps:
+    - step: &generate-changelog
+        name: Generate Changelog
+        runs-on:
+          - self.hosted
+          - linux
+          - ollama  # Tag your runner with 'ollama' to ensure it has Ollama installed
+        script:
+          # Verify Ollama is available
+          - ollama --version || (echo "ERROR: Ollama not installed on this runner" && exit 1)
+          
+          # Start Ollama service if not running
+          - |
+            if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+              echo "Starting Ollama service..."
+              ollama serve &
+              sleep 5
+            fi
+          
+          # Ensure model is available
+          - |
+            if ! ollama list | grep -q "phi3:mini"; then
+              echo "Pulling phi3:mini model..."
+              ollama pull phi3:mini
+            fi
+          
+          # Generate changelog entry
+          - python generate_changelog.py --bitbucket
+          
+          # Commit and push if changes were made
+          - |
+            if ! git diff --quiet CHANGELOG.md; then
+              git config user.name "Bitbucket Pipelines"
+              git config user.email "pipelines@bitbucket.org"
+              git add CHANGELOG.md
+              git commit -m "docs: update changelog for PR #${BITBUCKET_PR_ID:-unknown}"
+              git push
+            else
+              echo "No changelog changes to commit"
+            fi
+
+pipelines:
+  pull-requests:
+    '**':  # Trigger on all pull requests to any branch
+      - step: *generate-changelog
+
+  # Optional: Also run on merges to main/master
+  branches:
+    main:
+      - step: *generate-changelog
+    master:
+      - step: *generate-changelog
+
+# Self-hosted runner setup instructions:
+# 1. Install Ollama on your runner: curl -fsSL https://ollama.com/install.sh | sh
+# 2. Pull the model: ollama pull phi3:mini
+# 3. Add runner labels: self.hosted, linux, ollama
+# 4. Start Ollama service: ollama serve (or set up as system service)
+
