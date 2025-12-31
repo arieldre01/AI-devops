@@ -33,34 +33,52 @@ jobs:
           path: ~/.ollama
           key: ollama-phi3-mini-v1
       
-      - name: Install Ollama
+      - name: Install Ollama (if not installed)
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
+          if ! command -v ollama &> /dev/null; then
+            echo "Ollama not found, installing..."
+            curl -fsSL https://ollama.com/install.sh | sh
+          else
+            echo "Ollama already installed, skipping..."
+          fi
       
       - name: Start Ollama service and wait for ready
         run: |
           ollama serve &
           # Wait for Ollama API to be ready (up to 60 seconds)
+          OLLAMA_READY=false
           for i in {1..30}; do
             if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
               echo "Ollama is ready!"
+              OLLAMA_READY=true
               break
             fi
             echo "Waiting for Ollama to start... ($i/30)"
             sleep 2
           done
+          
+          if [ "$OLLAMA_READY" = false ]; then
+            echo "ERROR: Ollama failed to start within 60 seconds"
+            exit 1
+          fi
       
-      - name: Pull Mistral model (if not cached)
+      - name: Pull phi3:mini model (if not available)
         run: |
-          # Retry logic for model pull
-          for i in {1..3}; do
-            if ollama pull phi3:mini; then
-              echo "Model pulled successfully!"
-              break
-            fi
-            echo "Retrying model pull... ($i/3)"
-            sleep 5
-          done
+          # Check if model already exists
+          if ollama list | grep -q "phi3:mini"; then
+            echo "Model phi3:mini already available, skipping download..."
+          else
+            echo "Model not found, downloading..."
+            # Retry logic for model pull
+            for i in {1..3}; do
+              if ollama pull phi3:mini; then
+                echo "Model pulled successfully!"
+                break
+              fi
+              echo "Retrying model pull... ($i/3)"
+              sleep 5
+            done
+          fi
       
       - name: Generate changelog entry
         run: |
