@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Dec 31, 2025 at 12:07 PM | 3 files | by arieldre01 - feat: Multi-platform CI support (GitHub, Bitbucket, GitLab) and self-hosted runner setup for Ollama pre-installed [performed by the author of this PR]
+
+
 - Dec 31, 2025 at 10:46 AM | 1 file | by arieldre01 - feat: reduce MAX_DIFF_CHARS for faster CI processing to improve diff focus and speed (maxed out from 4000 to 2000)
 
 
