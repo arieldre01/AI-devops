@@ -78,6 +78,47 @@ FORMAT_MAPPING = {
 # Helper Functions
 # =============================================================================
 
+def detect_ci_platform() -> str:
+    """
+    Auto-detect CI platform from environment variables.
+    Returns: 'github', 'bitbucket', 'gitlab', or 'local'
+    """
+    if os.environ.get('GITHUB_ACTIONS') == 'true':
+        return 'github'
+    elif os.environ.get('BITBUCKET_BUILD_NUMBER'):
+        return 'bitbucket'
+    elif os.environ.get('GITLAB_CI'):
+        return 'gitlab'
+    elif os.environ.get('JENKINS_URL'):
+        return 'jenkins'
+    elif os.environ.get('CIRCLECI'):
+        return 'circleci'
+    return 'local'
+
+
+def is_non_interactive_mode() -> bool:
+    """
+    Check if running in non-interactive mode (CI or auto mode).
+    Used to skip user prompts during automated runs.
+    """
+    # Check for auto/hook modes
+    if os.environ.get('GIT_HOOK') == 'post-merge':
+        return True
+    if '--auto' in sys.argv:
+        return True
+    
+    # Check for CI flags
+    ci_flags = ['--ci', '--github', '--bitbucket', '--gitlab']
+    if any(flag in sys.argv for flag in ci_flags):
+        return True
+    
+    # Check for CI environment variables
+    if detect_ci_platform() != 'local':
+        return True
+    
+    return False
+
+
 def run_git_command(args: list) -> subprocess.CompletedProcess:
     """Run a git command with standard options for cross-platform compatibility."""
     return subprocess.run(
@@ -357,12 +398,7 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
             return False
         
         # Prompt user for installation (skip in auto mode or CI)
-        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
-                        '--auto' in sys.argv or 
-                        '--ci' in sys.argv or 
-                        os.environ.get('GITHUB_ACTIONS') == 'true')
-        
-        if not is_auto_mode:
+        if not is_non_interactive_mode():
             response = input("   Would you like to install Ollama now? [Y/n]: ").strip().lower()
             if response and response not in ['y', 'yes']:
                 print("   Skipping installation")
@@ -395,12 +431,7 @@ def ensure_ollama_ready(auto_install: bool = True) -> bool:
         print(f"   The model is required for AI-powered changelog generation.")
         
         # In auto mode or CI, just download it
-        is_auto_mode = (os.environ.get('GIT_HOOK') == 'post-merge' or 
-                        '--auto' in sys.argv or 
-                        '--ci' in sys.argv or 
-                        os.environ.get('GITHUB_ACTIONS') == 'true')
-        
-        if not is_auto_mode:
+        if not is_non_interactive_mode():
             response = input(f"   Download '{MODEL}' model now? (~4GB) [Y/n]: ").strip().lower()
             if response and response not in ['y', 'yes']:
                 print("   Skipping model download")
@@ -1243,8 +1274,18 @@ Options:
     --setup       Check/install Ollama and download the model
     --cleanup     Clean up CHANGELOG.md (remove duplicates, validate format)
     --auto        Generate changelog without confirmation prompt
-    --ci          CI mode (non-interactive, for GitHub Actions)
+    --ci          CI mode (auto-detect platform: GitHub, Bitbucket, GitLab)
+    --github      Force GitHub Actions mode
+    --bitbucket   Force Bitbucket Pipelines mode
+    --gitlab      Force GitLab CI mode
     --help        Show this help message
+
+Supported CI Platforms:
+    - GitHub Actions (auto-detected via GITHUB_ACTIONS env var)
+    - Bitbucket Pipelines (auto-detected via BITBUCKET_BUILD_NUMBER env var)
+    - GitLab CI (auto-detected via GITLAB_CI env var)
+    - Jenkins (auto-detected via JENKINS_URL env var)
+    - CircleCI (auto-detected via CIRCLECI env var)
 
 Format:
     Entries use Conventional Commits format with metadata:
@@ -1263,6 +1304,12 @@ Examples:
     
     # Clean up existing changelog (remove duplicates)
     python generate_changelog.py --cleanup
+    
+    # CI mode with auto-detection
+    python generate_changelog.py --ci
+    
+    # Force specific platform
+    python generate_changelog.py --bitbucket
     
     # Remove the hook
     python generate_changelog.py --uninstall
@@ -1308,8 +1355,23 @@ if __name__ == "__main__":
         success = cleanup_changelog_file()
         sys.exit(0 if success else 1)
     
-    # Check for --ci flag (GitHub Actions mode)
-    ci_mode = '--ci' in sys.argv or os.environ.get('GITHUB_ACTIONS') == 'true'
+    # Detect CI platform (with CLI override support)
+    if '--github' in sys.argv:
+        platform = 'github'
+    elif '--bitbucket' in sys.argv:
+        platform = 'bitbucket'
+    elif '--gitlab' in sys.argv:
+        platform = 'gitlab'
+    elif '--ci' in sys.argv:
+        platform = detect_ci_platform()
+    else:
+        platform = detect_ci_platform()
+    
+    # Determine if we're in CI mode
+    ci_mode = platform in ('github', 'bitbucket', 'gitlab', 'jenkins', 'circleci')
+    
+    if ci_mode:
+        print(f"[INFO] Detected CI platform: {platform}")
     
     # Check for --auto flag or post-merge hook
     auto_write = '--auto' in sys.argv or os.environ.get('GIT_HOOK') == 'post-merge' or ci_mode
