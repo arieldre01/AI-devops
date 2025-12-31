@@ -515,8 +515,8 @@ def get_diff(mode: str = 'auto') -> Optional[str]:
     try:
         diff = ""
         
-        if mode in ('ci', 'merge'):
-            # For CI/merge: compare HEAD^1 to HEAD (merge commit diff)
+        if mode == 'ci':
+            # CI mode: compare HEAD^1 to HEAD (merge commit diff)
             result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
             diff = result.stdout or ""
             
@@ -524,6 +524,20 @@ def get_diff(mode: str = 'auto') -> Optional[str]:
             if not diff.strip():
                 result = run_git_command(["git", "show", "--format=", "--no-color", "HEAD"])
                 diff = result.stdout or ""
+        
+        elif mode == 'merge':
+            # Post-merge hook: check ORIG_HEAD first (handles fast-forward merges)
+            orig_check = run_git_command(["git", "rev-parse", "--verify", "ORIG_HEAD"])
+            
+            if orig_check.returncode == 0 and orig_check.stdout.strip():
+                # ORIG_HEAD exists - use it for accurate diff
+                result = run_git_command(["git", "diff", "ORIG_HEAD", "HEAD", "--no-color"])
+                diff = result.stdout or ""
+            else:
+                # No ORIG_HEAD, fall back to HEAD^1
+                result = run_git_command(["git", "diff", "HEAD^1", "HEAD", "--no-color"])
+                diff = result.stdout or ""
+        
         else:
             # Local mode: get uncommitted changes (staged + unstaged)
             staged = run_git_command(["git", "diff", "--cached"])
@@ -801,9 +815,12 @@ def main(auto_write=False, ci_mode=False):
     # Check if we're in a post-merge context
     is_post_merge = os.environ.get('GIT_HOOK') == 'post-merge'
     
-    if is_ci or is_post_merge:
-        print("Checking merge changes...")
+    if is_ci:
+        print("Checking CI merge changes...")
         diff = get_diff(mode='ci')
+    elif is_post_merge:
+        print("Checking post-merge changes...")
+        diff = get_diff(mode='merge')
     else:
         print("Checking for uncommitted changes...")
         diff = get_diff(mode='local')
