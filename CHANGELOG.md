@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Dec 31, 2025 at 10:23 AM - feat: refactor script to enhance CI processing on Windows using phi3:mini for better performance execution of generate_changelog during merge commits handling with cleanup functionality [ci/test]
+
+
 - feat: Add conditional installation prompts based on the presence of Ollama with rollback on startup failure and retry mechanisms for model pull
 - feat: Changed the `generate_changelog` script to enhance CI processing on Windows systems using phi3:mini with three times faster CPUs, including wait/retry mechanisms and increased timeout duration for better performance during changelog generation. This refactor also transitioned from mistral model API URLs to phi3:mini APIs and improved retry logic based on commit type length.
 - feat: Added a simple `count_to_ten` function within the script, which counts numbers 0-10 using Python's for loop functionality.
