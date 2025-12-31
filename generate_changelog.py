@@ -569,13 +569,13 @@ def generate_changelog_entry(diff: str) -> Optional[str]:
         
         with urlopen(request, timeout=300) as response:  # 5 min timeout
             result = json.loads(response.read().decode('utf-8'))
-        generated_text = result.get("response", "").strip()
-        
-        if not generated_text:
-            print("[WARN] Ollama returned an empty response")
-            return None
-        
-        return generated_text
+            generated_text = result.get("response", "").strip()
+            
+            if not generated_text:
+                print("[WARN] Ollama returned an empty response")
+                return None
+            
+            return generated_text
     
     except URLError as e:
         if "Connection refused" in str(e) or "No connection" in str(e):
